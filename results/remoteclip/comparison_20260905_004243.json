@@ -1,0 +1,23 @@
+{
+  "timestamp": "20260905_004243",
+  "sample": 100,
+  "seed": 42,
+  "openclip": {
+    "recall@1": 0.10726461038961038,
+    "precision@1": 1.0,
+    "recall@5": 0.536323051948052,
+    "precision@5": 1.0,
+    "recall@10": 0.6786916786916787,
+    "precision@10": 0.6333333333333333,
+    "mean_average_precision": 0.7435398038961036
+  },
+  "remoteclip": {
+    "recall@1": 0.10726461038961038,
+    "precision@1": 1.0,
+    "recall@5": 0.536323051948052,
+    "precision@5": 1.0,
+    "recall@10": 0.6746903559403559,
+    "precision@10": 0.6291666666666665,
+    "mean_average_precision": 0.746921571332542
+  }
+}

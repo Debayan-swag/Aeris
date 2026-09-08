@@ -1,0 +1,16 @@
+sentinel2.parquet
+data/
+.venv/
+__pycache__/
+*.pyc
+checkpoints/
+.venv/
+.cursor/
+.kiro/
+__pycache__/
+*.pyc
+checkpoints/
+sentinel2.parquet
+.venv/
+data/raw/sentinel2.parquet
+.git

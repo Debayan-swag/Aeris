@@ -1,0 +1,27 @@
+# Core backend
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+python-multipart>=0.0.9
+
+# Data processing & Storage
+pyarrow>=15.0.0
+pandas>=2.2.0
+numpy>=1.26.0
+Pillow>=10.2.0
+tqdm>=4.66.0
+
+# Multimodal & Vector Search
+open-clip-torch>=2.24.0
+torch>=2.2.0
+torchvision>=0.17.0
+faiss-cpu>=1.8.0
+
+# Optional / Advanced VLM & Geospatial
+# transformers>=4.38.0
+# rasterio>=1.3.9
+# geopandas>=0.14.0
+
+# India multi-temporal Sentinel-2 pipeline (Earth Engine) — install separately:
+# pip install -r india_multitemporal_sentinel2/requirements.txt

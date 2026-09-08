@@ -1,0 +1,21 @@
+{
+  "model": "RemoteCLIP",
+  "timestamp": "2026-09-05T00:42:43.078757",
+  "num_queries": 24,
+  "num_images": 100,
+  "k_values": [
+    1,
+    5,
+    10
+  ],
+  "aggregated_metrics": {
+    "recall@1": 0.10726461038961038,
+    "precision@1": 1.0,
+    "recall@5": 0.536323051948052,
+    "precision@5": 1.0,
+    "recall@10": 0.6746903559403559,
+    "precision@10": 0.6291666666666665,
+    "mean_average_precision": 0.746921571332542
+  },
+  "evaluation_time": 0.0009715557098388672
+}

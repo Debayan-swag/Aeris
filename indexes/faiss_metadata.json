@@ -1,0 +1,9 @@
+{
+  "index_type": "IndexFlatIP",
+  "similarity": "cosine",
+  "num_vectors": 1000,
+  "dimension": 512,
+  "embedding_file": "indexes\\embeddings.npy",
+  "faiss_index_file": "indexes\\satellite.faiss",
+  "normalized": true
+}

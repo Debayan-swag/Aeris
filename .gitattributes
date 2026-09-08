@@ -1,0 +1,1 @@
+data/raw/sentinel2.parquet filter=lfs diff=lfs merge=lfs -text
