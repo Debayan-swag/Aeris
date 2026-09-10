@@ -31,17 +31,17 @@ MODEL_NAME = "nvidia/nemotron-3.5-lightning-30b-a3b"
 
 DISTILGPT2_DIR = os.getenv(
     "DISTILGPT2_DIR",
-    r"C:\Users\USER\OneDrive\Desktop\Aeris\models\DistilGPT2"
+    r"C:\Users\Debayan\OneDrive\Desktop\Aeris\models\DistilGPT2"
 )
 
 REMOTECLIP_DIR = os.getenv(
     "REMOTECLIP_DIR",
-    r"C:\Users\USER\OneDrive\Desktop\Aeris\models\RemoteCLIP"
+    r"C:\Users\Debayan\OneDrive\Desktop\Aeris\models\RemoteCLIP"
 )
 
 EMBEDDING_DIR = os.getenv(
     "EMBEDDING_DIR",
-    r"C:\Users\USER\OneDrive\Desktop\Aeris\remoteclip_embeddings"
+    r"C:\Users\Debayan\OneDrive\Desktop\Aeris\remoteclip_embeddings"
 )
 
 REMOTECLIP_MODEL_NAME = "ViT-B-32"

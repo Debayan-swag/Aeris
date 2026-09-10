@@ -5,7 +5,7 @@ from pathlib import Path
 import streamlit as st
 
 # Lazy imports - only import when needed
-PROJECT_DIR = Path(r"C:\Users\USER\OneDrive\Desktop\Aeris")
+PROJECT_DIR = Path(r"C:\Users\Debayan\OneDrive\Desktop\Aeris")
 DATASET_PATH = PROJECT_DIR / "sentinel-2-processed.parquet"
 EMBEDDING_DIR = PROJECT_DIR / "remoteclip_embeddings"
 FAISS_PATH = EMBEDDING_DIR / "remoteclip.faiss"
@@ -52,44 +52,6 @@ def lazy_load_pipelines():
         _import_error = str(exc)
         return False, str(exc)
 
-
-def lazy_load_pipelines():
-    """Lazy load heavy imports only when needed"""
-    global _pipelines_loaded, _import_error
-    
-    if _pipelines_loaded:
-        return True, ""
-    
-    try:
-        # Import heavy libraries only when needed
-        global faiss, np, pd, torch, Image, BytesIO, Document
-        global stream_image_text_pipeline, remoteclip_model, remoteclip_tokenizer, remoteclip_device
-        global run_text_pipeline, stream_text_pipeline, compare_satellite_images
-        
-        import faiss
-        import numpy as np
-        import pandas as pd
-        import torch
-        from PIL import Image
-        from io import BytesIO
-        from langchain_core.documents import Document
-        
-        from image_text import (
-            stream_image_text_pipeline,
-            remoteclip_model,
-            remoteclip_tokenizer,
-            remoteclip_device,
-        )
-        from text import run_text_pipeline, stream_text_pipeline
-        from change_detection import compare_satellite_images
-        
-        _pipelines_loaded = True
-        return True, ""
-    except Exception as exc:
-        _import_error = str(exc)
-        return False, str(exc)
-
-
 st.set_page_config(
     page_title="Aeris Satellite Intelligence",
     layout="wide",
@@ -100,433 +62,660 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    /* ========== PREMIUM DESIGN SYSTEM ========== */
+    /* ========== AERIS COSMOS DESIGN SYSTEM ========== */
     
-    /* Base & Typography */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    
-    .stApp {
-        background: linear-gradient(135deg, #0f0c29 0%, #1a1a2e 50%, #16213e 100%);
-        color: #e8eef5;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    /* Typography Imports */
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+    :root {
+        --bg: #020307;
+        --ink: #f1f5f9;
+        --ink-dim: rgba(222, 231, 240, 0.72);
+        --ink-muted: rgba(188, 221, 232, 0.5);
+        --accent: #9fd8e8;
+        --accent-strong: #b9f3ff;
+        --accent-glow: rgba(110, 195, 220, 0.28);
+        --hot: #ffbf82;
+        --status-green: #82d8ca;
+        --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        --sans: 'Inter', system-ui, -apple-system, sans-serif;
+        --display: 'Space Grotesk', sans-serif;
+        --ease: cubic-bezier(0.16, 0.7, 0.2, 1);
     }
-    
-    /* Main Title - Hero Style */
-    .main-title {
+
+    /* Streamlit App Shell & Canvas */
+    .stApp {
+        background-color: #020307;
+        background-image: 
+            radial-gradient(ellipse 90% 60% at 50% -15%, rgba(103, 208, 238, 0.12), transparent 70%),
+            radial-gradient(ellipse 70% 45% at 50% 115%, rgba(87, 146, 238, 0.08), transparent 70%),
+            linear-gradient(rgba(148, 209, 226, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(148, 209, 226, 0.03) 1px, transparent 1px);
+        background-size: 100% 100%, 100% 100%, 64px 64px, 64px 64px;
+        color: var(--ink);
+        font-family: var(--sans);
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+    }
+
+    /* Container Spacing & Alignment */
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 3.5rem !important;
+        max-width: 1200px !important;
+    }
+
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+    }
+
+    /* Hero Presentation */
+    .hero-container {
         text-align: center;
-        font-size: 48px;
+        padding: 32px 0 24px 0;
+        margin: 0 auto 12px auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .hero-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .hero-brand-mark {
+        position: relative;
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+    }
+
+    .hero-brand-mark::after {
+        content: '';
+        position: absolute;
+        inset: -3px;
+        border: 1px solid rgba(159, 216, 232, 0.35);
+        border-left-color: transparent;
+        border-radius: 50%;
+        animation: orbitSpin 6s linear infinite;
+    }
+
+    .hero-eyebrow {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .hero-eyebrow::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--status-green);
+        box-shadow: 0 0 0 4px rgba(130, 216, 202, 0.15), 0 0 12px var(--status-green);
+        animation: pulseDot 2.2s ease-in-out infinite;
+    }
+
+    .main-title {
+        font-family: var(--display);
         font-weight: 700;
-        margin: 20px 0 8px 0;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-size: clamp(2.8rem, 5.5vw, 4.4rem);
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        margin: 0 0 12px 0;
+        text-align: center;
+        background: linear-gradient(105deg, #fff6e7 8%, #d1eff5 44%, #a3d7ed 72%, #e6d4fc 95%);
+        background-size: 200% 100%;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        letter-spacing: -0.02em;
-        animation: fadeInUp 0.6s ease-out;
+        animation: shimmer 8s ease-in-out infinite;
     }
-    
+
     .main-subtitle {
+        font-family: var(--sans);
+        font-size: 15.5px;
+        font-weight: 300;
+        color: var(--ink-dim);
+        letter-spacing: 0.02em;
+        max-width: 580px;
+        margin: 0 auto 28px auto;
+        line-height: 1.6;
         text-align: center;
-        font-size: 16px;
-        color: #9ca9ba;
-        margin-bottom: 32px;
-        font-weight: 400;
-        animation: fadeInUp 0.6s ease-out 0.1s both;
     }
-    
-    /* Section Headers */
+
+    /* Section Headings */
     .section-heading {
-        font-size: 24px;
+        font-family: var(--display);
+        font-size: 22px;
         font-weight: 600;
         color: #ffffff;
-        margin: 24px 0 12px 0;
+        margin: 20px 0 6px 0;
         letter-spacing: -0.01em;
-        position: relative;
-        padding-left: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
-    
+
     .section-heading::before {
         content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 4px;
-        height: 24px;
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        display: inline-block;
+        width: 3px;
+        height: 20px;
+        background: linear-gradient(180deg, var(--accent-strong), var(--accent));
         border-radius: 2px;
+        box-shadow: 0 0 10px var(--accent);
     }
-    
+
     .section-subtitle {
-        color: #9ca9ba;
-        font-size: 14px;
-        margin-bottom: 20px;
-        padding-left: 16px;
+        color: var(--ink-dim);
+        font-size: 13.5px;
+        margin-bottom: 22px;
+        padding-left: 13px;
         font-weight: 400;
     }
-    
-    /* Premium Cards */
-    .premium-card {
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+
+    /* Mode Selection Glass Cards */
+    .mode-card {
+        background: rgba(255, 255, 255, 0.025);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border: 1px solid rgba(159, 216, 232, 0.12);
         border-radius: 16px;
-        padding: 24px;
-        margin: 16px 0;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        padding: 24px 22px 20px 22px;
+        min-height: 178px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: all 0.35s var(--ease);
+        margin-bottom: 12px;
+        position: relative;
+        overflow: hidden;
     }
-    
-    .premium-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 48px rgba(102, 126, 234, 0.15);
-        border-color: rgba(102, 126, 234, 0.3);
+
+    .mode-card::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 50% 0%, rgba(159, 216, 232, 0.08), transparent 70%);
+        opacity: 0;
+        transition: opacity 0.35s ease;
+        pointer-events: none;
     }
-    
-    /* Status Box - Modern */
-    .status-box {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-        border: 1px solid rgba(102, 126, 234, 0.2);
-        border-radius: 12px;
-        padding: 14px 18px;
-        color: #e0e7f0;
-        font-size: 13px;
-        margin: 12px 0;
-        font-weight: 500;
-        backdrop-filter: blur(8px);
+
+    .mode-card:hover {
+        border-color: rgba(185, 243, 255, 0.4);
+        transform: translateY(-3px);
+        box-shadow: 0 16px 40px -10px var(--accent-glow);
     }
-    
-    /* Result Title */
-    .result-title {
-        font-size: 20px;
+
+    .mode-card:hover::before {
+        opacity: 1;
+    }
+
+    .mode-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+    }
+
+    .mode-tag {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--accent);
+        background: rgba(159, 216, 232, 0.08);
+        border: 1px solid rgba(159, 216, 232, 0.22);
+        padding: 3px 9px;
+        border-radius: 20px;
+    }
+
+    .mode-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .mode-card-title {
+        font-family: var(--display);
+        font-size: 18px;
         font-weight: 600;
         color: #ffffff;
-        margin: 24px 0 16px 0;
         letter-spacing: -0.01em;
+        margin-bottom: 6px;
     }
-    
-    /* Premium Buttons */
+
+    .mode-card-desc {
+        font-size: 12.5px;
+        line-height: 1.55;
+        color: var(--ink-dim);
+        font-weight: 300;
+        margin: 0;
+    }
+
+    /* Buttons */
     div.stButton > button {
         width: 100%;
-        min-height: 72px;
         border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
-        color: white;
-        font-size: 17px;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(159, 216, 232, 0.22);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 100%);
+        color: #f1f5f9;
+        font-family: var(--sans);
+        font-size: 14px;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+        transition: all 0.3s var(--ease);
         backdrop-filter: blur(10px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        padding: 12px 20px;
     }
-    
+
     div.stButton > button:hover {
-        border-color: rgba(102, 126, 234, 0.5);
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+        border-color: rgba(185, 243, 255, 0.6);
+        background: linear-gradient(180deg, rgba(159, 216, 232, 0.16) 0%, rgba(159, 216, 232, 0.05) 100%);
         transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
+        box-shadow: 0 8px 26px var(--accent-glow);
+        color: #ffffff;
     }
-    
+
     div.stButton > button:active {
         transform: translateY(0);
     }
-    
-    /* Primary Button */
-    .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        min-height: 48px;
-        font-size: 15px;
+
+    /* Primary Action Buttons */
+    div.stButton > button[kind="primary"] {
+        background: linear-gradient(180deg, rgba(159, 216, 232, 0.26) 0%, rgba(159, 216, 232, 0.1) 100%);
+        border: 1px solid rgba(185, 243, 255, 0.5);
+        color: #ffffff;
         font-weight: 600;
-        box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 4px 20px rgba(110, 195, 220, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
-    
-    .stButton > button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
-        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+
+    div.stButton > button[kind="primary"]:hover {
+        background: linear-gradient(180deg, rgba(185, 243, 255, 0.4) 0%, rgba(159, 216, 232, 0.2) 100%);
+        border-color: rgba(185, 243, 255, 0.85);
+        box-shadow: 0 10px 32px rgba(110, 195, 220, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.3);
         transform: translateY(-2px);
     }
-    
-    /* File Uploader - Premium */
+
+    /* Ghost Back Navigation Button */
+    .back-btn-wrap {
+        margin-bottom: 16px;
+    }
+
+    .back-btn-wrap div.stButton > button {
+        width: auto !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        padding: 7px 18px !important;
+        font-family: var(--mono) !important;
+        font-size: 11.5px !important;
+        letter-spacing: 0.08em !important;
+        text-transform: uppercase !important;
+        border-radius: 999px !important;
+        background: rgba(255, 255, 255, 0.025) !important;
+        border: 1px solid rgba(159, 216, 232, 0.2) !important;
+        color: var(--ink-dim) !important;
+    }
+
+    .back-btn-wrap div.stButton > button:hover {
+        border-color: rgba(185, 243, 255, 0.6) !important;
+        background: rgba(159, 216, 232, 0.08) !important;
+        color: #ffffff !important;
+        transform: translateX(-2px) !important;
+    }
+
+    /* Telemetry HUD Strip */
+    .telemetry-strip {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 28px;
+        flex-wrap: wrap;
+        padding: 20px 0 10px 0;
+        margin-top: 24px;
+        border-top: 1px solid rgba(159, 216, 232, 0.08);
+        font-family: var(--mono);
+        font-size: 10.5px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+    }
+
+    .hud-stat {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .hud-stat-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--status-green);
+        box-shadow: 0 0 8px var(--status-green);
+        animation: pulseDot 2s ease-in-out infinite;
+    }
+
+    .hud-stat-val {
+        color: var(--accent);
+        font-weight: 500;
+    }
+
+    /* Text Inputs & Textareas */
+    .stTextArea textarea {
+        background: rgba(255, 255, 255, 0.025) !important;
+        border: 1px solid rgba(159, 216, 232, 0.16) !important;
+        border-radius: 12px !important;
+        color: #f1f5f9 !important;
+        font-size: 14px !important;
+        padding: 16px !important;
+        font-family: var(--sans) !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .stTextArea textarea:focus {
+        border-color: rgba(185, 243, 255, 0.6) !important;
+        box-shadow: 0 0 0 3px rgba(159, 216, 232, 0.12) !important;
+        background: rgba(255, 255, 255, 0.04) !important;
+    }
+
+    /* File Uploader */
     [data-testid="stFileUploader"] {
-        background: rgba(255, 255, 255, 0.03);
-        border: 2px dashed rgba(102, 126, 234, 0.3);
-        border-radius: 12px;
-        padding: 24px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px dashed rgba(159, 216, 232, 0.28);
+        border-radius: 14px;
+        padding: 20px;
         transition: all 0.3s ease;
     }
-    
+
     [data-testid="stFileUploader"]:hover {
-        border-color: rgba(102, 126, 234, 0.5);
-        background: rgba(102, 126, 234, 0.05);
+        border-color: rgba(185, 243, 255, 0.55);
+        background: rgba(159, 216, 232, 0.04);
     }
-    
-    /* Stream Box - Animated */
-    .stream-box {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
-        padding: 18px;
-        line-height: 1.7;
-        font-size: 14px;
-        color: #e0e7f0;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-        animation: fadeIn 0.3s ease-out;
-        font-weight: 400;
-    }
-    
-    /* Image Container - Modern */
+
+    /* Image Container with Border Glow */
     .image-container {
         border-radius: 12px;
         overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        margin-bottom: 16px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
+        border: 1px solid rgba(159, 216, 232, 0.15);
+        background: rgba(0, 0, 0, 0.35);
+        margin-bottom: 12px;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+        transition: all 0.3s var(--ease);
     }
-    
+
     .image-container:hover {
-        transform: scale(1.02);
-        box-shadow: 0 12px 48px rgba(102, 126, 234, 0.2);
-        border-color: rgba(102, 126, 234, 0.3);
+        border-color: rgba(185, 243, 255, 0.4);
+        transform: translateY(-2px);
+        box-shadow: 0 12px 32px var(--accent-glow);
     }
-    
-    /* Text Area - Premium */
-    .stTextArea textarea {
-        background: rgba(255, 255, 255, 0.03) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 12px !important;
-        color: #e8eef5 !important;
-        font-size: 14px !important;
-        padding: 16px !important;
-        font-family: 'Inter', sans-serif !important;
-        transition: all 0.3s ease !important;
-    }
-    
-    .stTextArea textarea:focus {
-        border-color: rgba(102, 126, 234, 0.5) !important;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
-        background: rgba(255, 255, 255, 0.05) !important;
-    }
-    
-    /* Sidebar - Premium */
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #16213e 0%, #0f0c29 100%);
-        border-right: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    
-    /* Metrics - Modern Cards */
-    [data-testid="stMetric"] {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+
+    /* AI Streaming Content Box */
+    .stream-box {
+        background: rgba(2, 4, 10, 0.7);
+        border: 1px solid rgba(159, 216, 232, 0.15);
+        border-left: 3px solid var(--accent);
         border-radius: 12px;
-        padding: 16px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        padding: 20px 24px;
+        line-height: 1.75;
+        font-size: 13.5px;
+        color: #e2eaf1;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 32px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(12px);
+        font-weight: 400;
     }
-    
+
+    /* Metrics Cards */
+    [data-testid="stMetric"] {
+        background: rgba(255, 255, 255, 0.02) !important;
+        border: 1px solid rgba(159, 216, 232, 0.12) !important;
+        border-radius: 12px !important;
+        padding: 16px 20px !important;
+        backdrop-filter: blur(10px) !important;
+    }
+
     [data-testid="stMetricLabel"] {
-        font-size: 13px;
-        color: #9ca9ba;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        font-family: var(--mono) !important;
+        font-size: 10.5px !important;
+        color: var(--ink-muted) !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.14em !important;
     }
-    
+
     [data-testid="stMetricValue"] {
-        font-size: 28px;
-        font-weight: 700;
+        font-family: var(--display) !important;
+        font-size: 26px !important;
+        font-weight: 600 !important;
+        color: #ffffff !important;
+        letter-spacing: -0.01em !important;
+    }
+
+    /* Progress Bar */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(90deg, #79cfd8, #e7c098) !important;
+        box-shadow: 0 0 12px rgba(121, 207, 216, 0.5) !important;
+        border-radius: 4px !important;
+    }
+
+    /* Sidebar Clean Cosmos Theme */
+    [data-testid="stSidebar"] {
+        background: #050811 !important;
+        border-right: 1px solid rgba(159, 216, 232, 0.09) !important;
+    }
+
+    .sidebar-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 0 18px 0;
+        border-bottom: 1px solid rgba(159, 216, 232, 0.08);
+        margin-bottom: 18px;
+    }
+
+    .sidebar-brand-name {
+        font-family: var(--display);
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
         color: #ffffff;
-        letter-spacing: -0.02em;
     }
-    
-    /* Progress Bar - Gradient */
-    .stProgress > div > div {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        border-radius: 4px;
+
+    .sidebar-status-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--mono);
+        font-size: 9.5px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--status-green);
+        background: rgba(130, 216, 202, 0.08);
+        border: 1px solid rgba(130, 216, 202, 0.2);
+        padding: 4px 10px;
+        border-radius: 20px;
+        margin-bottom: 22px;
     }
-    
-    /* Spinner - Modern */
-    .stSpinner > div {
-        border-color: rgba(102, 126, 234, 0.2);
-        border-top-color: #667eea;
+
+    .sidebar-dot {
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--status-green);
+        box-shadow: 0 0 8px var(--status-green);
+        animation: pulseDot 2s ease-in-out infinite;
     }
-    
-    /* Tabs - Premium */
+
+    .sidebar-section-label {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+        margin: 18px 0 10px 0;
+    }
+
+    .sidebar-card {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(159, 216, 232, 0.1);
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+    }
+
+    .sidebar-card-label {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+        margin-bottom: 4px;
+    }
+
+    .sidebar-card-value {
+        font-family: var(--sans);
+        font-size: 13px;
+        font-weight: 500;
+        color: #ffffff;
+    }
+
+    .sidebar-card-sub {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: var(--accent);
+        margin-top: 3px;
+    }
+
+    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background: rgba(255, 255, 255, 0.02);
-        padding: 8px;
+        padding: 6px;
         border-radius: 12px;
+        border: 1px solid rgba(159, 216, 232, 0.08);
     }
-    
+
     .stTabs [data-baseweb="tab"] {
         border-radius: 8px;
-        padding: 12px 24px;
+        padding: 10px 20px;
+        font-family: var(--sans);
+        font-size: 13px;
         font-weight: 500;
-        transition: all 0.3s ease;
+        color: var(--ink-dim);
+        transition: all 0.25s ease;
     }
-    
+
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: rgba(159, 216, 232, 0.14) !important;
+        border: 1px solid rgba(185, 243, 255, 0.35) !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 16px rgba(110, 195, 220, 0.18);
     }
-    
-    /* Expander - Modern */
-    .streamlit-expanderHeader {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
-        padding: 16px 20px;
+
+    /* Expanders */
+    [data-testid="stExpander"] {
+        background: rgba(255, 255, 255, 0.015) !important;
+        border: 1px solid rgba(159, 216, 232, 0.1) !important;
+        border-radius: 12px !important;
+        overflow: hidden;
+    }
+
+    /* Similarity Badge */
+    .sim-badge {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+        background: rgba(159, 216, 232, 0.08);
+        border: 1px solid rgba(159, 216, 232, 0.2);
+        border-radius: 6px;
+        padding: 2px 7px;
+        margin-top: 4px;
+    }
+
+    .result-title {
+        font-family: var(--display);
+        font-size: 18px;
         font-weight: 600;
-        transition: all 0.3s ease;
-    }
-    
-    .streamlit-expanderHeader:hover {
-        background: rgba(102, 126, 234, 0.1);
-        border-color: rgba(102, 126, 234, 0.3);
-    }
-    
-    /* No Results - Premium Empty State */
-    .no-results {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px dashed rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
-        padding: 48px 32px;
-        text-align: center;
-        color: #9ca9ba;
-        margin: 32px 0;
-    }
-    
-    .no-results h3 {
         color: #ffffff;
-        font-size: 20px;
-        margin-bottom: 8px;
-        font-weight: 600;
+        margin: 20px 0 14px 0;
+        letter-spacing: -0.01em;
     }
-    
+
+    /* Empty state */
+    .no-results {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px dashed rgba(159, 216, 232, 0.15);
+        border-radius: 16px;
+        padding: 44px 28px;
+        text-align: center;
+        color: var(--ink-dim);
+        margin: 28px 0;
+    }
+
     /* Footer */
     .footer {
         text-align: center;
-        color: #6b7a8f;
-        font-size: 12px;
-        margin-top: 48px;
-        padding: 24px 0;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
-        font-weight: 400;
-    }
-    
-    /* Animations */
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateX(-20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-    
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.6; }
-    }
-    
-    /* Loading State */
-    .loading-indicator {
-        display: inline-block;
-        animation: pulse 2s ease-in-out infinite;
-    }
-    
-    /* Badge */
-    .badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
+        color: var(--ink-muted);
+        font-family: var(--mono);
         font-size: 11px;
-        font-weight: 600;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
-        border: 1px solid rgba(102, 126, 234, 0.3);
-        color: #a8b8ff;
+        margin-top: 48px;
+        padding: 22px 0;
+        border-top: 1px solid rgba(159, 216, 232, 0.06);
     }
-    
-    /* Success Badge */
-    .badge-success {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.2) 100%);
-        border-color: rgba(16, 185, 129, 0.3);
-        color: #6ee7b7;
-    }
-    
-    /* Warning Badge */
-    .badge-warning {
-        background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.2) 100%);
-        border-color: rgba(245, 158, 11, 0.3);
-        color: #fcd34d;
-    }
-    
-    /* Info Message Box */
-    .info-box {
-        background: rgba(59, 130, 246, 0.1);
-        border-left: 4px solid #3b82f6;
-        border-radius: 8px;
-        padding: 16px 20px;
-        margin: 16px 0;
-        color: #bfdbfe;
-        font-size: 14px;
-    }
-    
-    /* Success Message Box */
-    .success-box {
-        background: rgba(16, 185, 129, 0.1);
-        border-left: 4px solid #10b981;
-        border-radius: 8px;
-        padding: 16px 20px;
-        margin: 16px 0;
-        color: #6ee7b7;
-        font-size: 14px;
-    }
-    
-    /* Smooth Scrolling */
-    html {
-        scroll-behavior: smooth;
-    }
-    
-    /* Custom Scrollbar */
+
+    /* Scrollbar */
     ::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
+        width: 8px;
+        height: 8px;
     }
-    
+
     ::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.02);
+        background: #020307;
     }
-    
+
     ::-webkit-scrollbar-thumb {
-        background: rgba(102, 126, 234, 0.3);
-        border-radius: 5px;
+        background: rgba(159, 216, 232, 0.22);
+        border-radius: 4px;
     }
-    
+
     ::-webkit-scrollbar-thumb:hover {
-        background: rgba(102, 126, 234, 0.5);
+        background: rgba(185, 243, 255, 0.45);
+    }
+
+    /* Keyframe Animations */
+    @keyframes shimmer {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+
+    @keyframes pulseDot {
+        0%, 100% { opacity: 0.45; transform: scale(0.85); }
+        50% { opacity: 1; transform: scale(1.15); }
+    }
+
+    @keyframes orbitSpin {
+        to { transform: rotate(360deg); }
     }
     </style>
     """,
@@ -630,13 +819,18 @@ def get_image(dataframe, image_name):
 
 def display_results(results, dataframe, title="Results"):
     if not results or len(results) == 0:
-        st.markdown('<div class="no-results">', unsafe_allow_html=True)
-        st.markdown("### No matching images found")
-        st.markdown("There are no images like this in the database.")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div class="no-results">
+                <div style="font-family:var(--display);font-size:17px;font-weight:600;color:#fff;margin-bottom:4px;">No Matches Found</div>
+                <div style="font-size:13px;color:var(--ink-dim);">No corresponding satellite imagery was found in the archive for this query.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         return
 
-    st.markdown(f'<div class="result-title">{title} ({len(results)} images)</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="result-title">{title} &middot; {len(results)} Scenes Retrieved</div>', unsafe_allow_html=True)
 
     num_cols = min(len(results), 5)
     columns = st.columns(num_cols)
@@ -652,14 +846,17 @@ def display_results(results, dataframe, title="Results"):
                 st.image(image, use_container_width=True)
                 st.markdown('</div>', unsafe_allow_html=True)
             
-            st.markdown(f"**{image_name}**")
-            st.caption(f"Similarity: {float(score):.4f}")
+            st.markdown(
+                f'<div style="font-family:var(--sans);font-size:12.5px;font-weight:500;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{image_name}">{image_name}</div>'
+                f'<div class="sim-badge">SIM &middot; {float(score):.4f}</div>',
+                unsafe_allow_html=True,
+            )
 
 
 def run_text_mode():
-    st.markdown('<div class="section-heading">Text Search</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-heading">Semantic Text Search</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="section-subtitle">Search the satellite archive using natural language.</div>',
+        '<div class="section-subtitle">Search the Sentinel-2 archive using natural language concepts.</div>',
         unsafe_allow_html=True,
     )
 
@@ -669,7 +866,7 @@ def run_text_mode():
         height=100,
     )
 
-    search_button = st.button("Search Archive", type="primary", use_container_width=True)
+    search_button = st.button("Search Archive →", type="primary", use_container_width=True)
 
     if not search_button:
         return
@@ -849,7 +1046,7 @@ def run_image_text_mode():
         height=90,
     )
 
-    analyze_button = st.button("Analyze Image", type="primary", use_container_width=True)
+    analyze_button = st.button("Analyze Image →", type="primary", use_container_width=True)
 
     if uploaded_file is not None:
         try:
@@ -1115,9 +1312,9 @@ def run_change_detection_mode():
     import time
     import hashlib
     
-    st.markdown('<div class="section-heading">Change Detection</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-heading">Temporal Change Detection</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="section-subtitle">Upload two satellite images to detect and analyze changes.</div>',
+        '<div class="section-subtitle">Upload two temporal captures to detect radiometric and structural modifications.</div>',
         unsafe_allow_html=True,
     )
 
@@ -1147,7 +1344,7 @@ def run_change_detection_mode():
             st.image(preview_after, caption="Changed Image", use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-    detect_button = st.button("Detect Changes", type="primary", use_container_width=True)
+    detect_button = st.button("Detect Changes →", type="primary", use_container_width=True)
 
     if not detect_button:
         return
@@ -1458,85 +1655,228 @@ def run_change_detection_mode():
 
 
 def landing_page():
-    st.markdown('<div class="main-title">AERIS</div>', unsafe_allow_html=True)
-    st.markdown('<div class="main-subtitle">Satellite Intelligence Platform</div>', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="hero-container">
+            <div class="hero-brand">
+                <span class="hero-brand-mark">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="4.6" stroke="#e9eff5" stroke-width="1.1"/>
+                        <ellipse cx="12" cy="12" rx="10.2" ry="4.1" stroke="rgba(140,205,220,.75)" stroke-width="0.9" transform="rotate(-26 12 12)"/>
+                        <circle cx="20" cy="6.6" r="1.3" fill="#8fd3e2"/>
+                    </svg>
+                </span>
+                <span class="hero-eyebrow">EARTH INTELLIGENCE &middot; MISSION CONTROL</span>
+            </div>
+            <h1 class="main-title">AERIS</h1>
+            <p class="main-subtitle">AI-powered semantic retrieval and multi-temporal satellite imagery analysis</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    st.markdown("<p style='text-align:center;color:#aaa;'>Choose a search mode</p>", unsafe_allow_html=True)
-
-    col1, col2, col3 = st.columns(3, gap="large")
+    col1, col2, col3 = st.columns(3, gap="medium")
 
     with col1:
-        if st.button("IMAGE & TEXT", key="image_text_mode"):
+        st.markdown(
+            """
+            <div class="mode-card">
+                <div class="mode-card-header">
+                    <span class="mode-tag">MODE 01</span>
+                    <div class="mode-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9fd8e8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                            <line x1="12" y1="22.08" x2="12" y2="12"/>
+                        </svg>
+                    </div>
+                </div>
+                <div>
+                    <div class="mode-card-title">Image &amp; Text</div>
+                    <p class="mode-card-desc">Extract multimodal features from uploaded satellite imagery to find matching scenes.</p>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button("Launch Analysis →", key="image_text_mode", use_container_width=True):
             st.session_state["mode"] = "image_text"
             st.rerun()
-        st.markdown("<p style='text-align:center;color:#888;font-size:12px;'>Upload and analyze satellite images</p>", unsafe_allow_html=True)
 
     with col2:
-        if st.button("TEXT SEARCH", key="text_mode"):
+        st.markdown(
+            """
+            <div class="mode-card">
+                <div class="mode-card-header">
+                    <span class="mode-tag">MODE 02</span>
+                    <div class="mode-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9fd8e8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                    </div>
+                </div>
+                <div>
+                    <div class="mode-card-title">Text Search</div>
+                    <p class="mode-card-desc">Query the archive using natural language concepts and spatial descriptions.</p>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button("Search Archive →", key="text_mode", use_container_width=True):
             st.session_state["mode"] = "text"
             st.rerun()
-        st.markdown("<p style='text-align:center;color:#888;font-size:12px;'>Search using natural language</p>", unsafe_allow_html=True)
-    
+
     with col3:
-        if st.button("CHANGE DETECTION", key="change_detection_mode"):
+        st.markdown(
+            """
+            <div class="mode-card">
+                <div class="mode-card-header">
+                    <span class="mode-tag">MODE 03</span>
+                    <div class="mode-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9fd8e8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="20" x2="18" y2="10"/>
+                            <line x1="12" y1="20" x2="12" y2="4"/>
+                            <line x1="6" y1="20" x2="6" y2="14"/>
+                        </svg>
+                    </div>
+                </div>
+                <div>
+                    <div class="mode-card-title">Change Detection</div>
+                    <p class="mode-card-desc">Compare two temporal captures to detect radiometric and structural differences.</p>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button("Compare Imagery →", key="change_detection_mode", use_container_width=True):
             st.session_state["mode"] = "change_detection"
             st.rerun()
-        st.markdown("<p style='text-align:center;color:#888;font-size:12px;'>Compare two satellite images</p>", unsafe_allow_html=True)
+
+    st.markdown(
+        """
+        <div class="telemetry-strip">
+            <span class="hud-stat"><span class="hud-stat-dot"></span> CONSTELLATION NOMINAL</span>
+            <span class="hud-stat">ARCHIVE &middot; <span class="hud-stat-val">SENTINEL-2</span></span>
+            <span class="hud-stat">INDEX &middot; <span class="hud-stat-val">REMOTECLIP 512-D</span></span>
+            <span class="hud-stat">ORBIT &middot; <span class="hud-stat-val">SSO 512 KM</span></span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def sidebar_config():
     with st.sidebar:
-        st.markdown('<div class="section-heading">About</div>', unsafe_allow_html=True)
-        
         st.markdown(
             """
-            **Aeris** is an AI-powered satellite intelligence platform for analyzing and retrieving satellite imagery.
-            
-            **Features:**
-            - Semantic image search
-            - Natural language queries
-            - Change detection analysis
-            - Visual similarity matching
-            """
+            <div class="sidebar-brand">
+                <span class="hero-brand-mark" style="width:24px;height:24px;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="4.6" stroke="#e9eff5" stroke-width="1.1"/>
+                        <ellipse cx="12" cy="12" rx="10.2" ry="4.1" stroke="rgba(140,205,220,.75)" stroke-width="0.9" transform="rotate(-26 12 12)"/>
+                        <circle cx="20" cy="6.6" r="1.3" fill="#8fd3e2"/>
+                    </svg>
+                </span>
+                <span class="sidebar-brand-name">AERIS</span>
+            </div>
+            <div class="sidebar-status-tag">
+                <span class="sidebar-dot"></span>
+                <span>SYSTEM NOMINAL</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
+
+        st.markdown('<div class="sidebar-section-label">MISSION TELEMETRY</div>', unsafe_allow_html=True)
         
-        st.markdown('<div class="section-heading">Dataset</div>', unsafe_allow_html=True)
-        
-        # Only show dataset info on landing page (fast check)
         mode = st.session_state.get("mode")
-        if mode is None and DATASET_PATH.exists():
-            st.markdown("**Status:** Ready")
-            st.markdown("**Source:** Sentinel-2 Archive")
-        elif DATASET_PATH.exists():
-            # Load dataset info only when in a mode (lazy)
+        mode_labels = {
+            "text": "Semantic Text Search",
+            "image_text": "Image & Text Analysis",
+            "change_detection": "Temporal Change Detection",
+        }
+        active_mode_str = mode_labels.get(mode, "Standby / Hub")
+        
+        st.markdown(
+            f"""
+            <div class="sidebar-card">
+                <div class="sidebar-card-label">CURRENT MODE</div>
+                <div class="sidebar-card-value">{active_mode_str}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        if DATASET_PATH.exists():
             try:
                 import pandas as pd
                 dataset = load_dataset()
-                if dataset is not None:
-                    st.markdown(f"**Satellite Images:** {len(dataset):,}")
-                    st.markdown("**Source:** Sentinel-2 Archive")
+                count_str = f"{len(dataset):,}" if dataset is not None else "Active"
+                st.markdown(
+                    f"""
+                    <div class="sidebar-card">
+                        <div class="sidebar-card-label">ARCHIVE COVERAGE</div>
+                        <div class="sidebar-card-value">{count_str} Scenes</div>
+                        <div class="sidebar-card-sub">Sentinel-2 MSI Archive</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
             except:
-                st.markdown("**Status:** Loading...")
-        
-        st.markdown('<div class="section-heading">Computation</div>', unsafe_allow_html=True)
-        
-        # Lazy check GPU only when needed
+                st.markdown(
+                    """
+                    <div class="sidebar-card">
+                        <div class="sidebar-card-label">ARCHIVE COVERAGE</div>
+                        <div class="sidebar-card-value">Sentinel-2 Archive</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+        st.markdown('<div class="sidebar-section-label">COMPUTE ENGINE</div>', unsafe_allow_html=True)
         if mode is not None:
             import torch
             gpu_available = torch.cuda.is_available()
             if gpu_available:
-                st.markdown(f"**Processor:** GPU ({torch.cuda.get_device_name(0)})")
-                st.markdown(f"**Memory:** {torch.cuda.get_device_properties(0).total_memory // (1024**3)} GB")
+                dev_name = torch.cuda.get_device_name(0)
+                mem_gb = torch.cuda.get_device_properties(0).total_memory // (1024**3)
+                st.markdown(
+                    f"""
+                    <div class="sidebar-card">
+                        <div class="sidebar-card-label">ACCELERATOR</div>
+                        <div class="sidebar-card-value">GPU &middot; {dev_name}</div>
+                        <div class="sidebar-card-sub">{mem_gb} GB VRAM Allocated</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
             else:
-                st.markdown("**Processor:** CPU")
+                st.markdown(
+                    """
+                    <div class="sidebar-card">
+                        <div class="sidebar-card-label">ACCELERATOR</div>
+                        <div class="sidebar-card-value">CPU Engine</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
         else:
-            st.markdown("**Processor:** Ready")
+            st.markdown(
+                """
+                <div class="sidebar-card">
+                    <div class="sidebar-card-label">ACCELERATOR</div>
+                    <div class="sidebar-card-value">Hardware Accelerated</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
 
 def main():
     sidebar_config()
 
-    # Quick file checks (fast - no loading)
     if not DATASET_PATH.exists():
         st.error(f"Dataset not found: {DATASET_PATH}")
         return
@@ -1551,11 +1891,9 @@ def main():
 
     mode = st.session_state.get("mode")
 
-    # Landing page loads instantly (no heavy imports)
     if mode is None:
         landing_page()
     else:
-        # Load everything ONCE when user clicks a mode
         pipelines_ready, error = lazy_load_pipelines()
         
         if not pipelines_ready:
@@ -1563,25 +1901,23 @@ def main():
             st.code(error)
             return
         
+        # Unified Ghost Back Button
+        st.markdown('<div class="back-btn-wrap">', unsafe_allow_html=True)
+        if st.button("← Return to Hub", key="global_back_btn"):
+            st.session_state["mode"] = None
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
         # Mode-specific pages
         if mode == "text":
-            if st.button("← Back"):
-                st.session_state["mode"] = None
-                st.rerun()
             run_text_mode()
         elif mode == "image_text":
-            if st.button("← Back"):
-                st.session_state["mode"] = None
-                st.rerun()
             run_image_text_mode()
         elif mode == "change_detection":
-            if st.button("← Back"):
-                st.session_state["mode"] = None
-                st.rerun()
             run_change_detection_mode()
 
     st.markdown(
-        '<div class="footer">Aeris Satellite Intelligence Platform • Powered by AI</div>',
+        '<div class="footer">AERIS &middot; Intelligent Earth Observation Platform</div>',
         unsafe_allow_html=True,
     )
 
