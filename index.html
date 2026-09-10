@@ -1,0 +1,638 @@
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Aeris — Intelligent Earth Observation</title>
+<meta name="description" content="Aeris — search, explore and analyze satellite imagery using AI-powered semantic retrieval and multi-temporal analysis."/>
+<meta name="theme-color" content="#020307"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='6' fill='none' stroke='%23e8f0f6' stroke-width='1.6'/%3E%3Cellipse cx='16' cy='16' rx='13' ry='5.4' fill='none' stroke='%237fc9d8' stroke-width='1.2' transform='rotate(-24 16 16)'/%3E%3C/svg%3E"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=Inter:wght@300;400;500&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --bg:#020307;
+    --ink:#f1f5f9;
+    --ink-dim:rgba(222,231,240,.72);
+    --accent:#9fd8e8;
+    --accent-strong:#b9f3ff;
+    --hot:#ffbf82;
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --ease:cubic-bezier(.16,.7,.2,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{height:100%;color-scheme:dark}
+  body{
+    height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  }
+  #scene{position:fixed;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity 2.6s ease;z-index:0}
+  body.is-ready #scene{opacity:1}
+  .overlay{position:fixed;inset:0;pointer-events:none;z-index:1}
+  .overlay-vignette{background:
+    radial-gradient(ellipse 130% 100% at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%),
+    linear-gradient(180deg, rgba(2,3,7,.45), transparent 140px)}
+  .overlay-center{background:radial-gradient(ellipse 56% 44% at 50% 53%, rgba(2,4,9,.6) 0%, rgba(2,4,9,.3) 48%, transparent 74%)}
+  .overlay-grid{opacity:.18;background-image:linear-gradient(rgba(148,209,226,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(148,209,226,.045) 1px,transparent 1px);background-size:72px 72px;mask-image:radial-gradient(ellipse 72% 70% at 50% 50%,#000,transparent 78%);animation:gridDrift 18s linear infinite}
+  .overlay-noise{opacity:.035;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.85'/%3E%3C/svg%3E");mix-blend-mode:screen}
+  .cursor-glow{position:fixed;width:440px;height:440px;left:0;top:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(circle,rgba(103,208,238,.13),rgba(87,146,238,.035) 31%,transparent 68%);transform:translate(-50%,-50%);transition:opacity .6s ease;mix-blend-mode:screen}
+  body.has-pointer .cursor-glow{opacity:1}
+
+  .brand{position:fixed;top:28px;left:32px;z-index:3;display:flex;align-items:center;gap:11px;animation:fadeSlide 1.4s var(--ease) .2s both}
+  .brand-name{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:500;letter-spacing:.06em;text-shadow:0 1px 16px rgba(0,0,0,.6)}
+  .brand-mark{position:relative;width:25px;height:25px;display:grid;place-items:center}
+  .brand-mark::after{content:'';position:absolute;inset:-3px;border:1px solid rgba(135,214,230,.25);border-left-color:transparent;border-radius:50%;animation:orbitSpin 5s linear infinite}
+
+  .mission{position:fixed;right:32px;top:28px;z-index:3;display:flex;gap:14px;align-items:center;font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:rgba(202,224,234,.62);animation:fadeSlide 1.4s var(--ease) .34s both}
+  .mission-rule{width:54px;height:1px;background:linear-gradient(90deg,transparent,rgba(151,217,235,.65))}
+  .mission-status{display:flex;align-items:center;gap:8px}
+  .mission-status b{font-weight:400;color:#bfeef1}
+  .mission-wave{width:25px;height:10px;display:flex;gap:2px;align-items:center}
+  .mission-wave i{display:block;width:2px;background:#94e5d8;box-shadow:0 0 8px rgba(125,231,213,.8);animation:equalize 1.1s ease-in-out infinite}
+  .mission-wave i:nth-child(1){height:3px}.mission-wave i:nth-child(2){height:9px;animation-delay:-.4s}.mission-wave i:nth-child(3){height:5px;animation-delay:-.75s}.mission-wave i:nth-child(4){height:7px;animation-delay:-.22s}
+
+  .hero{position:relative;z-index:2;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:96px 24px 72px}
+  .hero::before{content:'';position:absolute;width:min(66vw,820px);aspect-ratio:1;border:1px solid rgba(142,211,228,.08);border-radius:50%;box-shadow:0 0 0 28px rgba(142,211,228,.018),0 0 0 74px rgba(142,211,228,.012);animation:breath 7s ease-in-out infinite;pointer-events:none}
+  .hero::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;border:1px solid rgba(181,238,247,.55);box-shadow:0 0 0 7px rgba(142,220,234,.08),0 0 26px rgba(120,224,239,.6);top:calc(50% - min(33vw,410px));left:calc(50% + min(23vw,285px));animation:beacon 2.8s ease-in-out infinite;pointer-events:none}
+  .hero-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center}
+  .eyebrow{display:flex;align-items:center;gap:9px;margin-bottom:18px;color:rgba(188,221,232,.72);font-family:var(--mono);font-size:10px;letter-spacing:.21em;text-transform:uppercase;animation:rise 1.2s var(--ease) .25s both}
+  .eyebrow::before{content:'';width:6px;height:6px;border-radius:50%;background:#91e0cf;box-shadow:0 0 0 4px rgba(145,224,207,.11),0 0 15px rgba(145,224,207,.75);animation:pulseDot 2s ease-in-out infinite}
+  .hero h1{font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:clamp(2.6rem,6.4vw,4.7rem);line-height:1.05;letter-spacing:-.02em;margin-bottom:24px;text-shadow:0 2px 44px rgba(0,0,0,.7);animation:rise 1.5s var(--ease) .4s both}
+  .hero h1 em{font-style:normal;background:linear-gradient(105deg,#fff6e7 9%,#d1eff5 46%,#a3d7ed 74%,#e6d4fc);-webkit-background-clip:text;background-clip:text;color:transparent;background-size:180% 100%;animation:shimmer 8s ease-in-out infinite}
+  .lede{font-weight:300;font-size:clamp(1rem,1.45vw,1.18rem);line-height:1.7;color:var(--ink-dim);max-width:600px;margin-bottom:44px;text-shadow:0 1px 24px rgba(0,0,0,.65);animation:rise 1.5s var(--ease) .58s both}
+
+  .cta-wrap{display:flex;flex-direction:column;align-items:center;animation:rise 1.5s var(--ease) .76s both}
+  .cta{isolation:isolate;overflow:hidden;position:relative;display:inline-flex;align-items:center;gap:12px;padding:17px 34px;border-radius:999px;border:1px solid rgba(185,216,230,.3);background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.03));color:#eef4f9;font-family:'Inter',sans-serif;font-size:14.5px;font-weight:500;letter-spacing:.05em;white-space:nowrap;cursor:pointer;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 0 0 rgba(120,200,225,0);transition:transform .5s var(--ease),border-color .5s var(--ease),box-shadow .5s var(--ease),background .5s var(--ease)}
+  .cta::before{content:'';position:absolute;z-index:-1;width:140px;height:140px;left:var(--glow-x,50%);top:var(--glow-y,50%);border-radius:50%;background:radial-gradient(circle,rgba(179,235,247,.32),transparent 65%);transform:translate(-50%,-50%);opacity:0;transition:opacity .5s ease}
+  .cta:hover::before{opacity:1}
+  .cta:hover{transform:translateY(-2px);border-color:rgba(165,220,238,.65);background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.05));box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 14px 44px -10px rgba(110,195,220,.35)}
+  .cta:active{transform:translateY(0)}
+  .cta:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+  .cta .arrow{transition:transform .5s var(--ease)}
+  .cta:hover .arrow{transform:translateX(4px)}
+  .cta .spinner{display:none;width:14px;height:14px;border-radius:50%;border:1.5px solid rgba(230,244,250,.25);border-top-color:#d8f0f8;animation:spin .9s linear infinite}
+  .cta.is-loading .spinner{display:inline-block}
+  .cta.is-loading .arrow{display:none}
+  .cta-note{margin-top:20px;min-height:1.3em;font-size:12px;letter-spacing:.06em;color:rgba(170,198,214,.6);opacity:0;transform:translateY(6px);transition:opacity .9s ease,transform .9s ease}
+  .cta-note.is-visible{opacity:1;transform:none}
+
+  .hud{position:fixed;bottom:26px;z-index:2;display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(185,205,220,.42);pointer-events:none;animation:fadeIn 2.2s ease 1.3s both}
+  .hud-left{left:32px}
+  .hud-right{right:32px}
+  .hud-dot{width:5px;height:5px;border-radius:50%;background:#82d8ca;box-shadow:0 0 10px rgba(130,216,202,.9);animation:pulseDot 2.6s ease-in-out infinite}
+  .telemetry{position:fixed;left:32px;top:50%;z-index:2;width:148px;padding-left:13px;border-left:1px solid rgba(151,215,230,.28);font-family:var(--mono);text-transform:uppercase;pointer-events:none;animation:fadeSlide 1.6s var(--ease) 1.1s both}
+  .telemetry::before{content:'';position:absolute;width:5px;height:5px;left:-3px;top:-1px;background:#a9f1fb;box-shadow:0 0 12px #8cdae9}
+  .telemetry-label{display:block;margin-bottom:11px;font-size:8px;letter-spacing:.19em;color:rgba(194,221,232,.42)}
+  .telemetry-value{display:block;margin-bottom:5px;font-size:10px;letter-spacing:.08em;color:rgba(219,238,243,.78)}
+  .telemetry-bar{height:2px;width:100%;overflow:hidden;background:rgba(159,217,232,.13)}
+  .telemetry-bar i{display:block;width:46%;height:100%;background:linear-gradient(90deg,#79cfd8,#e7c098);box-shadow:0 0 10px rgba(142,223,235,.8);animation:telemetry 4.4s ease-in-out infinite}
+  .telemetry + .telemetry{top:calc(50% + 93px);animation-delay:1.22s}
+  .telemetry + .telemetry .telemetry-bar i{width:72%;animation-delay:-1.8s}
+
+  @keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+  @keyframes fadeSlide{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes pulseDot{0%,100%{opacity:.45;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
+  @keyframes orbitSpin{to{transform:rotate(360deg)}}
+  @keyframes breath{0%,100%{transform:scale(.96);opacity:.35}50%{transform:scale(1.04);opacity:.9}}
+  @keyframes beacon{0%,100%{transform:scale(.7);opacity:.5}50%{transform:scale(1.35);opacity:1}}
+  @keyframes shimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+  @keyframes gridDrift{to{background-position:72px 72px}}
+  @keyframes telemetry{0%,100%{transform:translateX(-20%);opacity:.5}50%{transform:translateX(130%);opacity:1}}
+  @keyframes equalize{0%,100%{transform:scaleY(.45);opacity:.45}50%{transform:scaleY(1);opacity:1}}
+
+  @media (max-width:640px){
+    .brand{top:22px;left:22px}
+    .mission{top:23px;right:22px}.mission-rule{display:none}
+    .mission-status b{display:none}
+    .hud-left{display:none}
+    .hud-right{right:22px;bottom:20px}
+    .telemetry{display:none}
+    .hero{padding:80px 20px 64px}
+    .hero::before{width:82vw}.hero::after{top:calc(50% - 41vw);left:calc(50% + 29vw)}
+    .lede{margin-bottom:36px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0ms!important;transition-duration:.01ms!important}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="overlay overlay-vignette" aria-hidden="true"></div>
+<div class="overlay overlay-center" aria-hidden="true"></div>
+<div class="overlay overlay-grid" aria-hidden="true"></div>
+<div class="overlay overlay-noise" aria-hidden="true"></div>
+<div class="cursor-glow" id="cursorGlow" aria-hidden="true"></div>
+
+<header class="brand">
+  <span class="brand-mark">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.6" stroke="#e9eff5" stroke-width="1.1"/>
+      <ellipse cx="12" cy="12" rx="10.2" ry="4.1" stroke="rgba(140,205,220,.75)" stroke-width="0.9" transform="rotate(-26 12 12)"/>
+      <circle cx="20" cy="6.6" r="1.3" fill="#8fd3e2"/>
+    </svg>
+  </span>
+  <span class="brand-name">Aeris</span>
+</header>
+
+<div class="mission" aria-label="Network status">
+  <span class="mission-rule"></span>
+  <span class="mission-status"><span class="mission-wave" aria-hidden="true"><i></i><i></i><i></i><i></i></span><b>Constellation online</b><span id="missionTime">00:00:00 UTC</span></span>
+</div>
+
+<main class="hero">
+  <div class="hero-content">
+    <p class="eyebrow">Earth intelligence, in motion</p>
+    <h1><em>Intelligent Earth</em><br/>Observation</h1>
+    <p class="lede">Search, explore and analyze satellite imagery using AI-powered semantic retrieval and multi-temporal analysis.</p>
+    <div class="cta-wrap">
+      <button class="cta" id="ctaBtn" type="button" aria-describedby="ctaNote">
+        <span class="cta-label">Search satellite imagery</span>
+        <svg class="arrow" width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M2 8h11M9 3.5 13.5 8 9 12.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="spinner" aria-hidden="true"></span>
+      </button>
+      <p class="cta-note" id="ctaNote" role="status" aria-live="polite"></p>
+    </div>
+  </div>
+</main>
+
+<aside class="telemetry" aria-hidden="true"><span class="telemetry-label">Scene coverage</span><span class="telemetry-value" id="coverageValue">97.4% indexed</span><span class="telemetry-bar"><i></i></span></aside>
+<aside class="telemetry" aria-hidden="true"><span class="telemetry-label">Cloud filter</span><span class="telemetry-value" id="cloudValue">12.8% cloud cover</span><span class="telemetry-bar"><i></i></span></aside>
+
+<div class="hud hud-left" aria-hidden="true"><span id="coords">28.4710° N · 80.5321° W</span></div>
+<div class="hud hud-right" aria-hidden="true"><span class="hud-dot"></span><span>Live downlink · SSO 512 km</span></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  'use strict';
+  var canvas = document.getElementById('scene');
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+  /* ---------- Static 2D fallback (no WebGL / no THREE) ---------- */
+  function fallback2D(){
+    var ctx = canvas.getContext('2d');
+    if(!ctx){ document.body.classList.add('is-ready'); return; }
+    function draw(){
+      var w = canvas.width = window.innerWidth * DPR;
+      var h = canvas.height = window.innerHeight * DPR;
+      ctx.fillStyle = '#020307'; ctx.fillRect(0,0,w,h);
+      var g1 = ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,Math.min(w,h)*0.5);
+      g1.addColorStop(0,'rgba(255,190,120,0.20)');
+      g1.addColorStop(0.4,'rgba(120,190,200,0.08)');
+      g1.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle = g1; ctx.fillRect(0,0,w,h);
+      var palette = ['255,244,230','255,214,160','230,235,240','140,210,210','150,190,240','190,170,235'];
+      for(var i=0;i<1600;i++){
+        var c = palette[(Math.random()*palette.length)|0];
+        ctx.fillStyle = 'rgba('+c+','+(0.25+Math.random()*0.6)+')';
+        ctx.beginPath();
+        ctx.arc(Math.random()*w, Math.random()*h, (Math.random()<0.06?1.6:0.8)*DPR, 0, 6.2832);
+        ctx.fill();
+      }
+    }
+    draw();
+    window.addEventListener('resize', draw);
+    document.body.classList.add('is-ready');
+  }
+
+  if(!window.THREE){ fallback2D(); return; }
+
+  var renderer;
+  try{
+    renderer = new THREE.WebGLRenderer({ canvas:canvas, antialias:false, alpha:false, powerPreference:'high-performance' });
+  }catch(e){ fallback2D(); return; }
+  renderer.setPixelRatio(DPR);
+  renderer.setClearColor(0x020307, 1);
+
+  var scene = new THREE.Scene();
+  var FOV = 55;
+  var camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 400);
+  camera.position.set(0, 2.4, 10.8);
+  camera.lookAt(0,0,0);
+
+  var galaxyGroup = new THREE.Group();
+  galaxyGroup.rotation.x = -0.62;
+  galaxyGroup.rotation.z = 0.30;
+  scene.add(galaxyGroup);
+
+  /* ---------- Shaders ---------- */
+  var vertexShader = [
+    'attribute float aSize;',
+    'attribute float aSeed;',
+    'attribute vec3 aColor;',
+    'uniform float uTime;',
+    'uniform float uScale;',
+    'uniform float uPulse;',
+    'uniform float uPulseR;',
+    'varying vec3 vColor;',
+    'varying float vBoost;',
+    'void main(){',
+    '  vColor = aColor;',
+    '  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);',
+    '  float twinkle = 0.82 + 0.18 * sin(uTime * (0.5 + aSeed * 1.7) + aSeed * 41.0);',
+    '  float radial = length(position.xz);',
+    '  float wave = exp(-pow((radial - uPulseR) * 1.15, 2.0)) * uPulse;',
+    '  vBoost = wave;',
+    '  float size = aSize * (1.0 + wave * 0.8);',
+    '  float pointSize = size * uScale * twinkle / max(0.001, -mvPosition.z);',
+    '  gl_PointSize = min(pointSize, 110.0);',
+    '  gl_Position = projectionMatrix * mvPosition;',
+    '}'
+  ].join('\n');
+
+  var fragmentShader = [
+    'varying vec3 vColor;',
+    'varying float vBoost;',
+    'void main(){',
+    '  vec2 uv = gl_PointCoord - vec2(0.5);',
+    '  float d = length(uv) * 2.0;',
+    '  if(d > 1.0) discard;',
+    '  float falloff = 1.0 - d;',
+    '  float alpha = pow(falloff, 2.4) * 0.8 + pow(falloff, 9.0) * 1.2;',
+    '  alpha *= (1.0 + vBoost * 1.8);',
+    '  gl_FragColor = vec4(vColor, alpha);',
+    '}'
+  ].join('\n');
+
+  function makeMaterial(){
+    return new THREE.ShaderMaterial({
+      uniforms:{ uTime:{value:0}, uScale:{value:1000}, uPulse:{value:0}, uPulseR:{value:0} },
+      vertexShader:vertexShader,
+      fragmentShader:fragmentShader,
+      blending:THREE.AdditiveBlending,
+      depthWrite:false,
+      transparent:true
+    });
+  }
+
+  /* ---------- Color gradient: warm core -> cool edge ---------- */
+  var COLOR_STOPS = [
+    [0.00,1.00,0.97,0.90], /* warm white   */
+    [0.16,1.00,0.87,0.64], /* pale yellow  */
+    [0.32,0.96,0.63,0.39], /* muted orange */
+    [0.52,0.83,0.85,0.89], /* soft gray    */
+    [0.70,0.44,0.79,0.79], /* teal / cyan  */
+    [0.86,0.47,0.72,0.94], /* light blue   */
+    [1.00,0.68,0.62,0.93]  /* lavender     */
+  ];
+  function colorAt(t,out){
+    if(t<0)t=0; if(t>1)t=1;
+    for(var i=1;i<COLOR_STOPS.length;i++){
+      if(t<=COLOR_STOPS[i][0]){
+        var a=COLOR_STOPS[i-1], b=COLOR_STOPS[i];
+        var f=(t-a[0])/(b[0]-a[0]);
+        out[0]=a[1]+(b[1]-a[1])*f;
+        out[1]=a[2]+(b[2]-a[2])*f;
+        out[2]=a[3]+(b[3]-a[3])*f;
+        return;
+      }
+    }
+    out[0]=COLOR_STOPS[6][1]; out[1]=COLOR_STOPS[6][2]; out[2]=COLOR_STOPS[6][3];
+  }
+  function gauss(){ return (Math.random()+Math.random()+Math.random())-1.5; }
+
+  /* ---------- Spiral galaxy ---------- */
+  var smallScreen = Math.min(window.innerWidth, window.innerHeight) < 720;
+  var GALAXY_COUNT = smallScreen ? 26000 : 60000;
+  var RADIUS = 10;
+
+  var positions = new Float32Array(GALAXY_COUNT*3);
+  var colors    = new Float32Array(GALAXY_COUNT*3);
+  var sizes     = new Float32Array(GALAXY_COUNT);
+  var seeds     = new Float32Array(GALAXY_COUNT);
+  var col = [0,0,0];
+
+  for(var i=0;i<GALAXY_COUNT;i++){
+    var i3=i*3, pick=Math.random(), x,y,z,t,kind;
+    if(pick<0.66){                       /* spiral arms */
+      kind=0;
+      var arm=i%2;
+      var r=Math.pow(Math.random(),1.8)*RADIUS;
+      var ang=arm*Math.PI + r*0.5 + gauss()*0.12;
+      var spread=0.3+r*0.12;
+      x=Math.cos(ang)*r + gauss()*spread;
+      z=Math.sin(ang)*r + gauss()*spread;
+      y=gauss()*(0.18+r*0.025);
+      t=r/RADIUS;
+    }else if(pick<0.87){                 /* dense core bulge */
+      kind=1;
+      var rb=Math.abs(gauss())*2.1;
+      var th=Math.random()*Math.PI*2;
+      var ph=Math.acos(2*Math.random()-1);
+      x=rb*Math.sin(ph)*Math.cos(th);
+      y=rb*Math.cos(ph)*0.55;
+      z=rb*Math.sin(ph)*Math.sin(th);
+      t=Math.min(1,rb/3.2)*0.28;
+    }else{                               /* diffuse halo */
+      kind=2;
+      var rh=RADIUS*(0.5+Math.random()*0.85);
+      var th2=Math.random()*Math.PI*2;
+      x=Math.cos(th2)*rh + gauss()*0.9;
+      z=Math.sin(th2)*rh + gauss()*0.9;
+      y=gauss()*0.6;
+      t=0.55+Math.min(1,rh/RADIUS)*0.45;
+    }
+    positions[i3]=x; positions[i3+1]=y; positions[i3+2]=z;
+
+    colorAt(t+(Math.random()-0.5)*0.05, col);
+    var acc=Math.random();
+    if(acc<0.05){ col[0]=col[0]*0.5+0.5;  col[1]=col[1]*0.5+0.45; col[2]=col[2]*0.5+0.34; }
+    else if(acc<0.09){ col[0]=col[0]*0.55+0.32; col[1]=col[1]*0.55+0.28; col[2]=col[2]*0.55+0.43; }
+
+    var bright=0.6+Math.random()*0.55;
+    if(kind===1) bright*=1.2;
+    if(kind===2) bright*=0.42;
+    colors[i3]=col[0]*bright; colors[i3+1]=col[1]*bright; colors[i3+2]=col[2]*bright;
+
+    var sp=Math.random(), s;
+    if(sp<0.008)      s=0.11+Math.random()*0.08;   /* few bright foreground */
+    else if(sp<0.18)  s=0.055+Math.random()*0.04;
+    else              s=0.02+Math.random()*0.035;  /* tiny distant points   */
+    if(kind===1) s*=1.2;
+    sizes[i]=s;
+    seeds[i]=Math.random();
+  }
+
+  var geo=new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+  geo.setAttribute('aColor',   new THREE.BufferAttribute(colors,3));
+  geo.setAttribute('aSize',    new THREE.BufferAttribute(sizes,1));
+  geo.setAttribute('aSeed',    new THREE.BufferAttribute(seeds,1));
+  var mat=makeMaterial();
+  var galaxy=new THREE.Points(geo,mat);
+  galaxy.rotation.y=0.8;
+  galaxyGroup.add(galaxy);
+
+  /* ---------- Distant star field ---------- */
+  var STAR_COUNT = smallScreen ? 1300 : 2600;
+  var sPos=new Float32Array(STAR_COUNT*3), sCol=new Float32Array(STAR_COUNT*3),
+      sSize=new Float32Array(STAR_COUNT), sSeed=new Float32Array(STAR_COUNT);
+  for(var j=0;j<STAR_COUNT;j++){
+    var j3=j*3;
+    var sr=48+Math.random()*72;
+    var sth=Math.random()*Math.PI*2;
+    var sph=Math.acos(2*Math.random()-1);
+    sPos[j3]=sr*Math.sin(sph)*Math.cos(sth);
+    sPos[j3+1]=sr*Math.cos(sph);
+    sPos[j3+2]=sr*Math.sin(sph)*Math.sin(sth);
+    var p=Math.random(), cr,cg,cb;
+    if(p<0.62){ var v=0.75+Math.random()*0.25; cr=v*0.92; cg=v*0.96; cb=v; }
+    else if(p<0.78){ cr=1; cg=0.88+Math.random()*0.06; cb=0.72; }
+    else if(p<0.92){ cr=0.62; cg=0.88; cb=0.92; }
+    else { cr=0.74; cg=0.66; cb=0.95; }
+    var bb=0.35+Math.random()*0.6;
+    sCol[j3]=cr*bb; sCol[j3+1]=cg*bb; sCol[j3+2]=cb*bb;
+    sSize[j]= Math.random()<0.04 ? 0.12+Math.random()*0.08 : 0.03+Math.random()*0.05;
+    sSeed[j]=Math.random();
+  }
+  var sGeo=new THREE.BufferGeometry();
+  sGeo.setAttribute('position', new THREE.BufferAttribute(sPos,3));
+  sGeo.setAttribute('aColor',   new THREE.BufferAttribute(sCol,3));
+  sGeo.setAttribute('aSize',    new THREE.BufferAttribute(sSize,1));
+  sGeo.setAttribute('aSeed',    new THREE.BufferAttribute(sSeed,1));
+  var starMat=makeMaterial();
+  var stars=new THREE.Points(sGeo,starMat);
+  scene.add(stars);
+
+  /* ---------- Soft core / halo glows ---------- */
+  function glowTexture(inner,mid){
+    var c=document.createElement('canvas'); c.width=c.height=256;
+    var g=c.getContext('2d');
+    var grad=g.createRadialGradient(128,128,0,128,128,128);
+    grad.addColorStop(0,inner); grad.addColorStop(0.4,mid); grad.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=grad; g.fillRect(0,0,256,256);
+    return new THREE.CanvasTexture(c);
+  }
+  var coreGlow=new THREE.Sprite(new THREE.SpriteMaterial({
+    map:glowTexture('rgba(255,224,176,0.9)','rgba(255,158,92,0.22)'),
+    blending:THREE.AdditiveBlending, depthWrite:false, transparent:true, opacity:0.5 }));
+  coreGlow.scale.set(5.5,5.5,1);
+  scene.add(coreGlow);
+  var haloGlow=new THREE.Sprite(new THREE.SpriteMaterial({
+    map:glowTexture('rgba(126,200,212,0.5)','rgba(90,140,200,0.12)'),
+    blending:THREE.AdditiveBlending, depthWrite:false, transparent:true, opacity:0.18 }));
+  haloGlow.scale.set(24,24,1);
+  scene.add(haloGlow);
+
+  /* ---------- Living orbital network ---------- */
+  var orbitSystem=new THREE.Group();
+  orbitSystem.rotation.set(-0.57,0.12,0.14);
+  scene.add(orbitSystem);
+  var orbitData=[];
+  var orbitSpecs=[
+    {rx:5.0,ry:2.0,speed:.34,phase:.15,color:0x79dce5},
+    {rx:6.7,ry:2.6,speed:-.22,phase:2.15,color:0xf0ba86},
+    {rx:8.3,ry:3.2,speed:.16,phase:4.1,color:0xa9bbf1}
+  ];
+  var satelliteGeometry=new THREE.OctahedronGeometry(0.075,1);
+  var satelliteMaterial=new THREE.MeshBasicMaterial({color:0xe9fbff,transparent:true,opacity:.95});
+  var beaconMap=glowTexture('rgba(221,251,255,.95)','rgba(108,215,235,.18)');
+
+  function makeOrbit(spec,index){
+    var orbitPositions=[];
+    for(var k=0;k<112;k++){
+      var angle=k/112*Math.PI*2;
+      orbitPositions.push(Math.cos(angle)*spec.rx,Math.sin(angle)*spec.ry,0);
+    }
+    var orbitGeometry=new THREE.BufferGeometry();
+    orbitGeometry.setAttribute('position',new THREE.Float32BufferAttribute(orbitPositions,3));
+    var orbitLine=new THREE.LineLoop(orbitGeometry,new THREE.LineBasicMaterial({
+      color:spec.color,transparent:true,opacity:index===1?.16:.12,blending:THREE.AdditiveBlending,depthWrite:false
+    }));
+    orbitSystem.add(orbitLine);
+    var satellite=new THREE.Group();
+    var body=new THREE.Mesh(satelliteGeometry,satelliteMaterial);
+    var beacon=new THREE.Sprite(new THREE.SpriteMaterial({map:beaconMap,color:spec.color,transparent:true,opacity:.88,depthWrite:false,blending:THREE.AdditiveBlending}));
+    beacon.scale.set(.72,.72,1);
+    satellite.add(body); satellite.add(beacon); orbitSystem.add(satellite);
+    orbitData.push({spec:spec,satellite:satellite,beacon:beacon,body:body});
+  }
+  for(var oi=0;oi<orbitSpecs.length;oi++) makeOrbit(orbitSpecs[oi],oi);
+
+  /* Short, rare telemetry streaks across the far field. */
+  var transits=[];
+  function makeTransit(seed){
+    var transitGeo=new THREE.BufferGeometry();
+    transitGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
+    var transitMat=new THREE.LineBasicMaterial({color:seed%2?0x92e5ec:0xf2bb8b,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false});
+    var transit=new THREE.Line(transitGeo,transitMat);
+    scene.add(transit);
+    return {line:transit,geo:transitGeo,mat:transitMat,delay:1.5+Math.random()*8,age:0,duration:1.3+Math.random()*1.3,x:0,y:0,z:0};
+  }
+  for(var ti=0;ti<4;ti++) transits.push(makeTransit(ti));
+  function resetTransit(transit){
+    transit.age=0; transit.delay=4+Math.random()*9; transit.duration=1.1+Math.random()*1.4;
+    transit.x=-12-Math.random()*4; transit.y=-3+Math.random()*8; transit.z=-7-Math.random()*6;
+  }
+  for(var tr=0;tr<transits.length;tr++) resetTransit(transits[tr]);
+
+  /* ---------- Resize / responsive framing ---------- */
+  function resize(){
+    var w=window.innerWidth, h=window.innerHeight;
+    renderer.setSize(w,h,false);
+    camera.aspect=w/h;
+    var a=w/h;
+    camera.position.z = a>=1.15 ? 10.8 : 10.8 + (1.15-a)*10.5;
+    camera.updateProjectionMatrix();
+    var scale=renderer.domElement.height/(2*Math.tan(THREE.MathUtils.degToRad(FOV*0.5)));
+    mat.uniforms.uScale.value=scale;
+    starMat.uniforms.uScale.value=scale;
+    if(reduceMotion) renderer.render(scene,camera);
+  }
+  window.addEventListener('resize',resize);
+  resize();
+
+  /* ---------- Subtle mouse parallax ---------- */
+  var tx=0,ty=0,cx=0,cy=0;
+  var cursorGlow=document.getElementById('cursorGlow');
+  window.addEventListener('pointermove',function(e){
+    if(e.pointerType==='touch') return;
+    tx=(e.clientX/window.innerWidth-0.5)*2;
+    ty=(e.clientY/window.innerHeight-0.5)*2;
+    cursorGlow.style.left=e.clientX+'px';
+    cursorGlow.style.top=e.clientY+'px';
+    document.body.classList.add('has-pointer');
+  },{passive:true});
+
+  /* ---------- Animation loop ---------- */
+  var clock=new THREE.Clock();
+  var BASE=0.045, boost=0, pulseT=-1, firstFrame=true;
+  function exciteScene(power){
+    pulseT=0;
+    boost=Math.max(boost,power||0.4);
+  }
+
+  function render(){
+    var dt=Math.min(clock.getDelta(),0.05);
+    var t=clock.elapsedTime;
+    boost*=Math.exp(-dt*1.25);
+    galaxy.rotation.y += (BASE+boost)*dt;
+    stars.rotation.y  -= 0.004*dt;
+    orbitSystem.rotation.z+=dt*(0.028+boost*.16);
+    for(var od=0;od<orbitData.length;od++){
+      var orbital=orbitData[od], spec=orbital.spec;
+      var theta=t*spec.speed+spec.phase;
+      orbital.satellite.position.set(Math.cos(theta)*spec.rx,Math.sin(theta)*spec.ry,0);
+      orbital.body.rotation.set(t*(1.2+od*.35),t*(.7+od*.2),theta);
+      orbital.beacon.material.opacity=.55+.38*(.5+.5*Math.sin(t*2.5+od));
+    }
+    for(var tsi=0;tsi<transits.length;tsi++){
+      var transit=transits[tsi];
+      transit.age+=dt;
+      if(transit.age<transit.delay){ transit.mat.opacity=0; continue; }
+      var transitProgress=(transit.age-transit.delay)/transit.duration;
+      if(transitProgress>1){ resetTransit(transit); transit.mat.opacity=0; continue; }
+      var headX=transit.x+transitProgress*25;
+      var trail=.65+transitProgress*.95;
+      var transitPositions=transit.geo.attributes.position.array;
+      transitPositions[0]=headX; transitPositions[1]=transit.y; transitPositions[2]=transit.z;
+      transitPositions[3]=headX-trail; transitPositions[4]=transit.y+.12; transitPositions[5]=transit.z;
+      transit.geo.attributes.position.needsUpdate=true;
+      transit.mat.opacity=Math.sin(transitProgress*Math.PI)*.5;
+    }
+    mat.uniforms.uTime.value=t;
+    starMat.uniforms.uTime.value=t*0.7;
+    if(pulseT>=0){
+      pulseT+=dt/1.5;
+      if(pulseT>=1){ pulseT=-1; mat.uniforms.uPulse.value=0; }
+      else{
+        mat.uniforms.uPulseR.value=pulseT*RADIUS*1.3;
+        mat.uniforms.uPulse.value=Math.sin(pulseT*Math.PI);
+      }
+    }
+    cx+=(tx-cx)*0.035; cy+=(ty-cy)*0.035;
+    camera.position.x=cx*0.7;
+    camera.position.y=2.4-cy*0.5;
+    camera.lookAt(0,0,0);
+    renderer.render(scene,camera);
+    if(firstFrame){ firstFrame=false; document.body.classList.add('is-ready'); }
+  }
+
+  if(reduceMotion){
+    mat.uniforms.uTime.value=4;
+    starMat.uniforms.uTime.value=3;
+    renderer.render(scene,camera);
+    document.body.classList.add('is-ready');
+  }else{
+    renderer.setAnimationLoop(render);
+  }
+
+  /* ---------- CTA interaction ---------- */
+  var ctaBtn=document.getElementById('ctaBtn');
+  var ctaLabel=ctaBtn.querySelector('.cta-label');
+  var ctaNote=document.getElementById('ctaNote');
+  var busy=false;
+  ctaBtn.addEventListener('pointermove',function(e){
+    var rect=ctaBtn.getBoundingClientRect();
+    ctaBtn.style.setProperty('--glow-x',(e.clientX-rect.left)+'px');
+    ctaBtn.style.setProperty('--glow-y',(e.clientY-rect.top)+'px');
+  });
+  ctaBtn.addEventListener('click',function(){
+    if(busy) return;
+    busy=true;
+    ctaBtn.classList.add('is-loading');
+    ctaBtn.setAttribute('aria-busy','true');
+    ctaLabel.textContent='Launching Aeris';
+    if(!reduceMotion) exciteScene(.62);
+    
+    // Launch Streamlit app via server endpoint
+    fetch('http://localhost:8000/launch')
+      .then(function(response) { return response.json(); })
+      .then(function(data) {
+        window.setTimeout(function(){
+          // Redirect to Streamlit
+          window.location.href = data.url;
+        },1500);
+      })
+      .catch(function(error) {
+        console.error('Launch error:', error);
+        // Fallback: try to open Streamlit directly
+        window.setTimeout(function(){
+          window.location.href = 'http://localhost:8501';
+          ctaBtn.classList.remove('is-loading');
+          ctaBtn.removeAttribute('aria-busy');
+          ctaLabel.textContent='Search satellite imagery';
+          ctaNote.textContent='Opening Aeris platform...';
+          ctaNote.classList.add('is-visible');
+          busy=false;
+        },800);
+      });
+  });
+
+  window.addEventListener('pointerdown',function(e){
+    if(reduceMotion || ctaBtn.contains(e.target)) return;
+    exciteScene(.28);
+  },{passive:true});
+
+  /* ---------- Drifting coordinates ---------- */
+  var coordsEl=document.getElementById('coords');
+  var lat=28.4710, lon=-80.5321;
+  function updateMissionTelemetry(){
+    var now=new Date();
+    document.getElementById('missionTime').textContent=now.toISOString().slice(11,19)+' UTC';
+    var coverage=(97.1+Math.random()*.7).toFixed(1);
+    var cloud=(10.6+Math.random()*4.8).toFixed(1);
+    document.getElementById('coverageValue').textContent=coverage+'% indexed';
+    document.getElementById('cloudValue').textContent=cloud+'% cloud cover';
+  }
+  updateMissionTelemetry();
+  window.setInterval(updateMissionTelemetry,1000);
+  if(!reduceMotion){
+    window.setInterval(function(){
+      lat+=(Math.random()-0.5)*0.0018;
+      lon+=(Math.random()-0.5)*0.0018;
+      coordsEl.textContent=Math.abs(lat).toFixed(4)+'° '+(lat>=0?'N':'S')+' · '+Math.abs(lon).toFixed(4)+'° '+(lon>=0?'E':'W');
+    },2000);
+  }
+})();
+</script>
+</body>
+</html>
