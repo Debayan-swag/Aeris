@@ -1075,7 +1075,7 @@ def run_text_mode():
     
     for idx, sample in enumerate(sample_queries):
         with chip_cols[idx]:
-            if st.button(f"🎯 {sample.split()[0]} {sample.split()[1]}", key=f"chip_{idx}"):
+            if st.button(f"{sample.split()[0]} {sample.split()[1]}", key=f"chip_{idx}"):
                 st.session_state["search_query"] = sample
                 st.rerun()
 
@@ -1561,6 +1561,257 @@ def run_change_detection_mode():
                 x = ch.get("x", 0)
                 y = ch.get("y", 0)
                 st.markdown(f"`[{idx:02d}]` **{ctype.upper()}** &middot; {area:,} px at coordinate `({x}, {y})`")
+
+        # AI-Powered Detailed Analysis
+        st.markdown("---")
+        st.markdown('<div class="result-title">Autonomous Intelligence Analysis</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-subtitle">Comprehensive temporal change assessment</div>', unsafe_allow_html=True)
+        
+        analysis_placeholder = st.empty()
+        
+        # Pydantic model for structured output
+        from pydantic import BaseModel, Field
+        from typing import List
+        
+        class AnalysisSection(BaseModel):
+            title: str = Field(description="Section title")
+            content: str = Field(description="Detailed analysis text without URLs or links, 200-300 words")
+        
+        class ChangeAnalysisReport(BaseModel):
+            executive_summary: str = Field(description="High-level overview in 3-4 sentences, no URLs")
+            change_types: str = Field(description="Detailed breakdown of detected change types, 200-250 words, no URLs")
+            spatial_distribution: str = Field(description="Analysis of spatial patterns and clustering, 200-250 words, no URLs")
+            magnitude_assessment: str = Field(description="Evaluation of change scale and significance, 150-200 words, no URLs")
+            environmental_implications: str = Field(description="Discussion of potential causes and impacts, 200-250 words, no URLs")
+            key_regions: List[str] = Field(description="List of 5 detailed region analyses, each 80-100 words, no URLs")
+            recommendations: str = Field(description="Actionable recommendations and monitoring strategies, 150-200 words, no URLs")
+        
+        # Prepare change statistics
+        type_counts = {}
+        total_area_by_type = {}
+        for ch in changes:
+            ctype = ch.get("change_type", "unclassified")
+            type_counts[ctype] = type_counts.get(ctype, 0) + 1
+            total_area_by_type[ctype] = total_area_by_type.get(ctype, 0) + ch.get("area_pixels", 0)
+        
+        top_regions = sorted(changes, key=lambda x: x.get('area_pixels', 0), reverse=True)[:5]
+        
+        # Use NIM API with structured output for high-quality analysis
+        try:
+            from langchain_nvidia_ai_endpoints import ChatNVIDIA
+            from langchain_core.output_parsers import JsonOutputParser
+            from dotenv import load_dotenv
+            import os
+            
+            load_dotenv()
+            
+            with analysis_placeholder.container():
+                status_placeholder = st.empty()
+                status_placeholder.info("Initializing intelligence analysis...")
+                
+                # Comprehensive prompt with strict constraints
+                analysis_prompt = f"""You are a professional satellite imagery analyst. Generate a comprehensive temporal change detection report based on the data below.
+
+**CRITICAL REQUIREMENTS:**
+- Write in clear, professional prose
+- NO URLs, links, or web addresses
+- NO code snippets or technical implementation details  
+- Focus on geospatial analysis and environmental science
+- Use specific numbers from the data provided
+- Each section must be detailed and substantive
+
+**DETECTION DATA:**
+Total Regions: {len(changes)}
+Total Changed Pixels: {result.get('changed_pixels', 0):,}
+Surface Coverage: {change_percentage:.2f}%
+
+**CHANGE TYPE BREAKDOWN:**
+{chr(10).join([f"- {ctype}: {count} regions ({total_area_by_type[ctype]:,} pixels)" for ctype, count in sorted(type_counts.items(), key=lambda x: x[1], reverse=True)])}
+
+**TOP 5 REGIONS:**
+{chr(10).join([f"{i+1}. {r.get('change_type', 'change')} at location ({r.get('x', 0)}, {r.get('y', 0)}) covering {r.get('area_pixels', 0):,} pixels" for i, r in enumerate(top_regions)])}
+
+Generate a detailed analysis report with these sections:
+
+1. EXECUTIVE_SUMMARY: Concise overview of findings (3-4 sentences)
+2. CHANGE_TYPES: Detailed description of each change category detected (200-250 words)
+3. SPATIAL_DISTRIBUTION: Geographic patterns and clustering analysis (200-250 words)
+4. MAGNITUDE_ASSESSMENT: Scale and significance evaluation (150-200 words)
+5. ENVIRONMENTAL_IMPLICATIONS: Causes and environmental impacts (200-250 words)
+6. KEY_REGIONS: Analysis of top 5 regions, each with specific details (5 paragraphs, 80-100 words each)
+7. RECOMMENDATIONS: Monitoring and follow-up actions (150-200 words)
+
+Return ONLY valid JSON matching this structure:
+{{
+  "executive_summary": "text here",
+  "change_types": "text here",
+  "spatial_distribution": "text here",
+  "magnitude_assessment": "text here",
+  "environmental_implications": "text here",
+  "key_regions": ["region 1 text", "region 2 text", "region 3 text", "region 4 text", "region 5 text"],
+  "recommendations": "text here"
+}}"""
+
+                parser = JsonOutputParser(pydantic_object=ChangeAnalysisReport)
+                
+                nim_llm = ChatNVIDIA(
+                    model="nvidia/llama-3.1-nemotron-70b-instruct",
+                    api_key=os.getenv("NVIDIA_API_KEY"),
+                    temperature=0.7,
+                    max_tokens=2500,
+                )
+                
+                chain = nim_llm | parser
+                
+                status_placeholder.info("Generating comprehensive analysis...")
+                text_display = st.empty()
+                
+                # Stream the response
+                full_analysis = ""
+                streamed_content = ""
+                
+                for chunk in nim_llm.stream(analysis_prompt):
+                    if hasattr(chunk, 'content'):
+                        streamed_content += chunk.content
+                        # Display streaming with cursor
+                        text_display.markdown("```json\n" + streamed_content + "\n```\n\n*Processing analysis...*")
+                
+                status_placeholder.info("Formatting report...")
+                
+                # Parse the complete JSON
+                try:
+                    import json
+                    parsed_data = json.loads(streamed_content)
+                    
+                    # Build formatted report with streaming
+                    full_analysis = "## Executive Summary\n\n"
+                    text_display.markdown(full_analysis + "▌")
+                    time.sleep(0.1)
+                    
+                    full_analysis += parsed_data.get("executive_summary", "") + "\n\n"
+                    text_display.markdown(full_analysis + "▌")
+                    time.sleep(0.2)
+                    
+                    full_analysis += "## Change Type Analysis\n\n"
+                    text_display.markdown(full_analysis + "▌")
+                    time.sleep(0.1)
+                    
+                    full_analysis += parsed_data.get("change_types", "") + "\n\n"
+                    text_display.markdown(full_analysis + "▌")
+                    time.sleep(0.2)
+                    
+                    full_analysis += "## Spatial Distribution Patterns\n\n"
+                    text_display.markdown(full_analysis + "▌")
+                    time.sleep(0.1)
+                    
+                    full_analysis += parsed_data.get("spatial_distribution", "") + "\n\n"
+                    text_display.markdown(full_analysis + "▌")
+                    time.sleep(0.2)
+                    
+                    full_analysis += "## Magnitude Assessment\n\n"
+                    text_display.markdown(full_analysis + "▌")
+                    time.sleep(0.1)
+                    
+                    full_analysis += parsed_data.get("magnitude_assessment", "") + "\n\n"
+                    text_display.markdown(full_analysis + "▌")
+                    time.sleep(0.2)
+                    
+                    full_analysis += "## Environmental Implications\n\n"
+                    text_display.markdown(full_analysis + "▌")
+                    time.sleep(0.1)
+                    
+                    full_analysis += parsed_data.get("environmental_implications", "") + "\n\n"
+                    text_display.markdown(full_analysis + "▌")
+                    time.sleep(0.2)
+                    
+                    full_analysis += "## Critical Regions Analysis\n\n"
+                    text_display.markdown(full_analysis + "▌")
+                    time.sleep(0.1)
+                    
+                    key_regions = parsed_data.get("key_regions", [])
+                    for idx, region_text in enumerate(key_regions, 1):
+                        full_analysis += f"**Region {idx}:** {region_text}\n\n"
+                        text_display.markdown(full_analysis + "▌")
+                        time.sleep(0.15)
+                    
+                    full_analysis += "## Recommendations\n\n"
+                    text_display.markdown(full_analysis + "▌")
+                    time.sleep(0.1)
+                    
+                    full_analysis += parsed_data.get("recommendations", "") + "\n\n"
+                    text_display.markdown(full_analysis + "▌")
+                    time.sleep(0.2)
+                    
+                except json.JSONDecodeError:
+                    # Fallback if JSON parsing fails
+                    full_analysis = streamed_content
+                
+                # Add quantitative metrics
+                full_analysis += "\n---\n\n## Quantitative Metrics\n\n"
+                text_display.markdown(full_analysis + "▌")
+                time.sleep(0.1)
+                
+                full_analysis += f"- **Total Change Regions**: {len(changes):,}\n"
+                text_display.markdown(full_analysis + "▌")
+                time.sleep(0.05)
+                
+                full_analysis += f"- **Surface Coverage**: {change_percentage:.2f}%\n"
+                text_display.markdown(full_analysis + "▌")
+                time.sleep(0.05)
+                
+                full_analysis += f"- **Modified Pixels**: {result.get('changed_pixels', 0):,}\n"
+                text_display.markdown(full_analysis + "▌")
+                time.sleep(0.05)
+                
+                full_analysis += f"- **Average Region Size**: {result.get('changed_pixels', 0) // len(changes):,} pixels\n"
+                text_display.markdown(full_analysis + "▌")
+                time.sleep(0.05)
+                
+                full_analysis += f"- **Largest Region**: {max(changes, key=lambda x: x.get('area_pixels', 0)).get('area_pixels', 0):,} pixels\n\n"
+                text_display.markdown(full_analysis + "▌")
+                time.sleep(0.1)
+                
+                full_analysis += "### Distribution by Type\n\n"
+                text_display.markdown(full_analysis + "▌")
+                time.sleep(0.1)
+                
+                for ctype, count in sorted(type_counts.items(), key=lambda x: x[1], reverse=True):
+                    percentage = (count / len(changes)) * 100
+                    area = total_area_by_type[ctype]
+                    full_analysis += f"- **{ctype.title()}**: {count} regions ({percentage:.1f}%) • {area:,} pixels\n"
+                    text_display.markdown(full_analysis + "▌")
+                    time.sleep(0.08)
+                
+                status_placeholder.success("Analysis complete")
+                time.sleep(0.5)
+                status_placeholder.empty()
+                
+                # Final render without cursor
+                text_display.markdown(full_analysis)
+        
+        except Exception as analysis_error:
+            analysis_placeholder.error(f"Analysis generation failed: {str(analysis_error)}")
+            analysis_placeholder.info("Displaying basic summary...")
+            
+            # Fallback analysis
+            fallback_summary = f"""
+## Change Detection Summary
+
+**Overall Assessment:** Detected {len(changes)} distinct change regions covering {change_percentage:.2f}% of the observed area.
+
+### Change Types Distribution:
+"""
+            for ctype, count in sorted(type_counts.items(), key=lambda x: x[1], reverse=True):
+                fallback_summary += f"- **{ctype.title()}**: {count} region(s)\n"
+            
+            fallback_summary += f"""
+
+### Key Observations:
+- Total pixel modifications: {result.get('changed_pixels', 0):,}
+- Average change intensity: {change_percentage / len(changes):.2f}% per region
+- Largest change region: {max(changes, key=lambda x: x.get('area_pixels', 0)).get('area_pixels', 0):,} pixels
+"""
+            analysis_placeholder.markdown(fallback_summary)
 
     except Exception as exc:
         st.error(f"Detection failed: {exc}")

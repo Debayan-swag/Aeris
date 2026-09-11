@@ -14,7 +14,6 @@ from PIL import Image
 from pydantic import BaseModel, Field, field_validator
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnableParallel
 from langgraph.graph import StateGraph, START, END
@@ -23,11 +22,12 @@ from langgraph.graph import StateGraph, START, END
 load_dotenv()
 
 
-NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
-if not NVIDIA_API_KEY:
-    raise EnvironmentError("NVIDIA_API_KEY was not found in the environment.")
+# Remove NVIDIA API dependency - using DistilGPT-2 instead
+# NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
+# if not NVIDIA_API_KEY:
+#     raise EnvironmentError("NVIDIA_API_KEY was not found in the environment.")
 
-MODEL_NAME = "nvidia/nemotron-3.5-lightning-30b-a3b"
+MODEL_NAME = "distilbert/distilgpt2"
 
 DISTILGPT2_DIR = os.getenv(
     "DISTILGPT2_DIR",
@@ -123,15 +123,16 @@ class ImageTextState(TypedDict, total=False):
     no_data: bool
 
 
-nvidia_llm = ChatNVIDIA(
-    model=MODEL_NAME,
-    api_key=NVIDIA_API_KEY,
-    temperature=1,
-    top_p=0.95,
-    max_tokens=16384,
-    reasoning_budget=16384,
-    chat_template_kwargs={"enable_thinking": True},
-)
+# Remove NVIDIA LLM - replaced with DistilGPT-2
+# nvidia_llm = ChatNVIDIA(
+#     model=MODEL_NAME,
+#     api_key=NVIDIA_API_KEY,
+#     temperature=1,
+#     top_p=0.95,
+#     max_tokens=16384,
+#     reasoning_budget=16384,
+#     chat_template_kwargs={"enable_thinking": True},
+# )
 
 
 DISTILGPT2_REPO_ID = "distilbert/distilgpt2"
@@ -213,20 +214,52 @@ Do not invent context.
 """
 
 
-description_prompt = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            "You are the response-generation layer of a satellite imagery analysis system. Generate a sophisticated, natural and engaging description based only on the supplied user request and grounded semantic evidence. Do not invent objects, locations, coordinates, dates, sensors, events, weather, relationships or visual details that are not supported. Do not claim certainty when the evidence is insufficient. Do not mention models, embeddings, prompts, APIs or internal implementation. The result should feel natural and useful to a user exploring satellite imagery."
-        ),
-        (
-            "human",
-            "User request: {user_text}\nGrounded semantic evidence: {semantic_evidence}"
-        )
-    ]
-)
+description_prompt = """Generate a sophisticated, natural and engaging description for this satellite imagery analysis.
 
-description_chain = description_prompt | nvidia_llm
+User request: {user_text}
+Grounded semantic evidence: {semantic_evidence}
+
+Description:"""
+
+
+def generate_distilgpt2_description(user_text: str, semantic_evidence: Dict[str, Any]) -> str:
+    """Generate description using DistilGPT-2 instead of NVIDIA model."""
+    
+    prompt = description_prompt.format(
+        user_text=user_text,
+        semantic_evidence=semantic_evidence
+    )
+    
+    inputs = distilgpt2_tokenizer(
+        prompt,
+        return_tensors="pt",
+        truncation=True,
+        max_length=512
+    ).to(distilgpt2_device)
+    
+    with torch.no_grad():
+        output = distilgpt2_model.generate(
+            **inputs,
+            max_new_tokens=200,
+            temperature=0.8,
+            top_p=0.95,
+            do_sample=True,
+            pad_token_id=distilgpt2_tokenizer.eos_token_id,
+            repetition_penalty=1.2
+        )
+    
+    generated = distilgpt2_tokenizer.decode(
+        output[0][inputs["input_ids"].shape[1]:],
+        skip_special_tokens=True
+    ).strip()
+    
+    # Clean up the generated text
+    if not generated:
+        concepts = semantic_evidence.get("concepts", [])
+        evidence_text = semantic_evidence.get("evidence_text", "")
+        generated = f"The satellite imagery analysis for '{user_text}' reveals features including {', '.join(concepts[:5])}. {evidence_text}"
+    
+    return generated
 
 
 def detect_intent(user_text: str) -> str:
@@ -398,15 +431,8 @@ def generate_nim_description(
     user_text: str,
     semantic_evidence: Dict[str, Any]
 ) -> str:
-
-    response = description_chain.invoke(
-        {
-            "user_text": user_text,
-            "semantic_evidence": semantic_evidence
-        }
-    )
-
-    return response.content.strip()
+    """Generate description using DistilGPT-2."""
+    return generate_distilgpt2_description(user_text, semantic_evidence)
 
 
 def load_vector_resources():
@@ -965,38 +991,54 @@ def stream_nim_description(
     user_text: str,
     semantic_evidence: Dict[str, Any]
 ):
-
-    prompt = (
-        f"User request: {user_text}\n"
-        f"Grounded semantic evidence: {semantic_evidence}"
+    """Stream description generation using DistilGPT-2."""
+    
+    prompt = description_prompt.format(
+        user_text=user_text,
+        semantic_evidence=semantic_evidence
     )
-
-    for chunk in nvidia_llm.stream(
-        [
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    ):
-
-        if (
-            chunk.additional_kwargs
-            and "reasoning_content"
-            in chunk.additional_kwargs
-        ):
-            yield {
-                "type": "reasoning",
-                "data": chunk.additional_kwargs[
-                    "reasoning_content"
-                ]
-            }
-
-        if chunk.content:
-            yield {
-                "type": "content",
-                "data": chunk.content
-            }
+    
+    inputs = distilgpt2_tokenizer(
+        prompt,
+        return_tensors="pt",
+        truncation=True,
+        max_length=512
+    ).to(distilgpt2_device)
+    
+    # Since DistilGPT-2 doesn't natively stream, we'll generate and yield in chunks
+    with torch.no_grad():
+        output = distilgpt2_model.generate(
+            **inputs,
+            max_new_tokens=200,
+            temperature=0.8,
+            top_p=0.95,
+            do_sample=True,
+            pad_token_id=distilgpt2_tokenizer.eos_token_id,
+            repetition_penalty=1.2
+        )
+    
+    generated = distilgpt2_tokenizer.decode(
+        output[0][inputs["input_ids"].shape[1]:],
+        skip_special_tokens=True
+    ).strip()
+    
+    # Clean up the generated text
+    if not generated:
+        concepts = semantic_evidence.get("concepts", [])
+        evidence_text = semantic_evidence.get("evidence_text", "")
+        generated = f"The satellite imagery analysis for '{user_text}' reveals features including {', '.join(concepts[:5])}. {evidence_text}"
+    
+    # Simulate streaming by yielding the text in chunks
+    words = generated.split()
+    chunk_size = 5
+    for i in range(0, len(words), chunk_size):
+        chunk = ' '.join(words[i:i+chunk_size])
+        if i + chunk_size < len(words):
+            chunk += ' '
+        yield {
+            "type": "content",
+            "data": chunk
+        }
 
 
 def stream_image_text_pipeline(

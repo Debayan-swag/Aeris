@@ -4,22 +4,9 @@ import torch
 
 from dotenv import load_dotenv
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
-from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_core.documents import Document
 
 load_dotenv()
-
-NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
-if not NVIDIA_API_KEY:
-    raise EnvironmentError("NVIDIA_API_KEY was not found in the environment.")
-
-# NIM API for intent analysis (free, one-time use)
-nim_llm = ChatNVIDIA(
-    model="nvidia/nemotron-3.5-lightning-30b-a3b",
-    api_key=NVIDIA_API_KEY,
-    temperature=0.7,
-    max_tokens=300,
-)
 
 # Load DistilGPT2 for multi-query generation
 distilgpt2_tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
@@ -36,20 +23,37 @@ text_generator = pipeline(
 
 
 def generate_intent_analysis(user_query: str) -> str:
-    """Generate detailed intent analysis using NIM API."""
+    """Generate detailed intent analysis using DistilGPT-2."""
     
-    prompt = f"""Analyze this satellite image search query and explain the user's intent in 100-200 words.
+    prompt = f"""Analyze this satellite image search query and explain the user's intent.
 What are they looking for? What features, patterns, or changes might they want to identify?
 
 User query: {user_query}
 
-Provide a thoughtful analysis:"""
+Analysis: This search query is looking for satellite imagery that shows"""
     
     try:
-        response = nim_llm.invoke(prompt)
-        return response.content
+        result = text_generator(
+            prompt,
+            max_new_tokens=150,
+            temperature=0.7,
+            top_p=0.9,
+            do_sample=True,
+            num_return_sequences=1,
+            pad_token_id=distilgpt2_tokenizer.eos_token_id
+        )
+        
+        generated_text = result[0]['generated_text']
+        # Extract the analysis part after "Analysis:"
+        if "Analysis:" in generated_text:
+            analysis = generated_text.split("Analysis:", 1)[1].strip()
+            # Clean up and format
+            analysis = "This search query is looking for satellite imagery that shows" + analysis
+            return analysis
+        
+        return generated_text.replace(prompt, "").strip()
     except Exception as e:
-        return f"Searching for satellite imagery matching: {user_query}"
+        return f"Searching for satellite imagery matching: {user_query}. The query aims to identify relevant geographic features, land use patterns, or structures that match the described criteria."
 
 
 def generate_three_queries_with_distilgpt2(user_query: str) -> List[str]:
@@ -214,24 +218,18 @@ def run_text_pipeline(user_query: str, retriever: Any) -> Dict[str, Any]:
 
 
 def stream_text_pipeline(user_query: str, retriever: Any):
-    """Stream text search pipeline with NIM API for intent and DistilGPT2 for queries."""
+    """Stream text search pipeline with DistilGPT-2 for both intent and queries."""
     
     # Stage 1: Understanding
     yield {"type": "stage", "data": "Understanding your search query..."}
     
-    # Stage 2: Generate intent analysis with NIM API (streaming)
+    # Stage 2: Generate intent analysis with DistilGPT-2
     yield {"type": "stage", "data": "AI is analyzing your intent..."}
     yield {"type": "thinking_start", "data": "Starting analysis..."}
     
     try:
-        # Stream from NIM API
-        for chunk in nim_llm.stream(f"""Analyze this satellite image search query and explain the user's intent in 100-200 words.
-What are they looking for? What features, patterns, or changes might they want to identify?
-
-User query: {user_query}
-
-Provide a thoughtful analysis:"""):
-            yield {"type": "thinking_content", "data": chunk.content}
+        intent_text = generate_intent_analysis(user_query)
+        yield {"type": "thinking_content", "data": intent_text}
     except Exception as e:
         yield {"type": "thinking_content", "data": f"Analyzing: {user_query}"}
     
