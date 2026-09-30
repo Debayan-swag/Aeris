@@ -2,7 +2,7 @@
 
 Aeris is a local satellite-intelligence application for searching a Sentinel-2 imagery archive, analyzing an uploaded image, and detecting change between two observations. It is built with Streamlit, RemoteCLIP, FAISS, OpenCV, and DistilGPT-2.
 
-1. It has satellite imagery change detection with advance inage processing algorithms. It does pixel to pixel analysis for better change detection in every area of the image being referenced.
+1. It has ```satellite imagery change detection```  with advance inage processing algorithms. It does pixel to pixel analysis for better change detection in every area of the image being referenced.
 
 2. It has ```image to image semantic search``` fearure which is implemented with HyDE for better analysis and retrieval.
 
