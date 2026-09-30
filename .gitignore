@@ -3,3 +3,4 @@ __pycache__/
 models/
 sentinel-2-processed.parquet
 remoteclip_embeddings/
+.env
